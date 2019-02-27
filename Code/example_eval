@@ -1,0 +1,177 @@
+%Edit before use:
+    stimDir= '/Users/JayAppaji/Documents/MATLAB/AllStim'; %directory where stimuli are stored
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    
+    clc
+    pNum= input ( ' Enter participant number and press ENTER: ', 's'); %Record participant number
+    clc
+    
+    
+    disp ( ' In this listening test, you will hear 30-second excerpts of Hindi and Punjabi songs. ');
+    disp ( ' After hearing each excerpt, you will be asked to classify it into one of four metrical groups.  ');
+    disp ( ' ' );
+    disp ( ' ' );
+    disp ( ' The groups are: ');
+    disp ( ' ' );
+    disp ( ' 1.) Swing ');
+    disp ( ' 2.) Syncopated ');
+    disp ( ' 3.) Polyrhythmic (Three over Two) ');
+    disp ( ' 4.) Even fours ');
+    disp ( ' ' );
+    disp ( ' ' );
+    disp ( 'During each trial, you will be prompted with the above category names. ');
+    disp ( ' ' );
+    disp ( ' ' );
+    disp ( 'You will now hear training sets for each group to familiarize yourself with what to listen for. ');
+    disp ( 'Each training set will begin with four bars of just the type of rhythm to listen for. ');
+    disp ( 'This will be followed by three 15-second excerpts from songs which utilize that rhythm type,' );
+    disp ( ' ' );
+    disp ( ' ' );
+    disp ( ' ' );
+    disp ( 'Press ENTER to hear Training Set 1 ' );
+    pause; 
+    clc
+    
+    %The below section generates a training set to play for the listener
+    %prior to the beginning of the perceptual test. It reads files from the
+    %current directory.
+    
+     %Play the first training set
+    disp ( 'Category 1 Training Set: Swing ')
+    [y,Fs]= audioread('Example1.wav');
+    sound(y, Fs);
+    pause(52); %Pause for duration of audio clip before proceeding to next one
+    clc
+    
+    %Prompt to move to next training set
+    disp ( 'Press ENTER to hear Training Set 2 ' );
+    pause;
+    clc
+    
+    %Play the second training set
+    disp ( 'Categeory 2 Training Set: Syncopated ')
+    [y,Fs]= audioread('Example2.wav');
+    sound(y, Fs);
+    pause(56); %Pause for duration of audio clip before proceeding to next one
+    clc
+    
+    %Prompt to move to next training set
+    disp ( 'Press ENTER to hear Training Set 3 ' );
+    pause;
+    clc
+    
+    %Play the third training set
+    disp ( 'Categeory 3 Training Set: Polyrhythmic (3 over 2) ')
+    [y,Fs]= audioread('Example3.wav');
+    sound(y, Fs);
+    pause(50); %Pause for duration of audio clip before proceeding to next one
+    clc
+    
+    %Prompt to move to next training set
+    disp ( 'Press ENTER to hear Training Set 4 ' );
+    pause; %Pause for duration of audio clip before proceeding to next one
+    clc
+    
+    %Play the fourth training set
+    disp ( 'Category 4 Training Set : Even Fours ')
+    [y,Fs]= audioread('Example4.wav');
+    sound(y, Fs);
+    pause(54); %Pause for duration of audio clip before proceeding to next one
+    clc
+    
+
+    
+    
+    
+
+    cd('/Users/JayAppaji/Documents/MATLAB/AllStim'); %Change to stimulus directory
+    fl= dir('*.wav'); %get all files 
+    flname= {fl.name}; %Cell array containing names of files
+        
+    rng('shuffle'); %Shuffle random number seed
+    ordering= randperm(size(flname,2)); %Create random ordering based on number of files in stim directory to present trials in
+        
+    %Start test:
+    
+    disp ( ' Press ENTER to begin the listening test'); 
+    disp ( ' ' );
+    disp ( ' ' );
+    disp ( ' ' );
+    pause;
+    
+    for i= 1 : size(flname,2) %loop number of stimuli in directory
+       
+        clc
+        cd(stimDir); %Change to directory containing stimuli
+        stimMessage= {'Stimulus '}; 
+        iString= {num2str(i)}; 
+        colon= {': '};
+        message= strcat(stimMessage, iString, colon); %Create on screen message to indicate what stimulus is being played
+        
+        disp(message); %display message
+        fileToPlay= flname{ordering(i)}; %Generate filename
+        [y,Fs]= audioread(fileToPlay); %Read in song file
+        filename= flname{ordering(i)}; %Store name of file for potential future use
+        [filepath,name,ext] = fileparts(filename); %Get name of stim file without extension
+        saveName= strcat(name, pNum); %Name of response file to be saved
+        sound(y, Fs); %Play song file
+        
+         %Give response options
+         disp(' Categories: ');
+         disp('    ');
+         disp('1: Swing ');
+         disp('2: Syncopated');
+         disp('3: Polyrhythmic (Three over Two)');
+         disp('4: Even fours');
+         disp('    ');
+         pause(31);
+         disp('What group do you think this stimulus belongs to?'); %Display question 
+         response= input('Type your response and press ENTER', 's'); %take in response
+         
+         while ((isempty(response))||(response<1)||(response>4))   %Catch incorrect response
+            response = input ( 'Please enter either 1, 2, 3, or 4 as your response  ');
+         end
+         
+         %The saving mechanism will create a new directory for each
+         %pariticpant and will save a new file for each response the
+         %particpant gives.
+         
+         mkdir(pNum); %Creates new directory within stimulus directory for each participant
+         slash= strcat('/',pNum); %Adds new directory to save path
+         newDir= strcat(stimDir, slash);
+         cd(newDir); %Change to new directory to save responses 
+         xlswrite(saveName, response); %write to file, specific to song name
+        
+         
+         
+    end
+    
+    %% Analysis script
+    cd(stimDir); %Change to stimulus directory
+    fl= dir('*.wav');
+    flname= {fl.name}; %Cell array containing names of files
+  
+    respMatrix= zeros(24, 4, 6); %Creates Songs x Category x Participant matrix to be populated in the loop, ADJUST THIRD DIMENSION
+    
+    %Populate respMatrix:
+    
+    for j = 1 : size(respMatrix, 3) %Outer loop traverses Participant dimension of response matrix
+        
+        slash= strcat('/', num2str(j)); %Create strong to add on to filepath-- directory containing datafiles
+        dirToChange=strcat('/Users/JayAppaji/Documents/MATLAB/AllStim',slash); %Change to directory containing data files
+        cd(dirToChange); %Change to respective subject's datafiles
+        files= dir('*.csv'); %Get all files in directory that are of type .csv
+        names= {files.name}; %Create cell array containing names of .csv files
+    
+        for k = 1 : size(names,2) %Inner loop uses song names as indicies
+            res= csvread(names{k}); %Participant response is value in specified cell in each data file
+           
+            %Depending on what the response is, the program will insert a 1
+            %at the catgeory index corresponding to that category. All
+            %other category responses for that trial will remain 0
+            respMatrix(k, res, j)= 1;
+            
+                     
+        end
+    end

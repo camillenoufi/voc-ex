@@ -1,0 +1,4 @@
+//to activate local python environment:
+// >> cd ~/local_env/bin
+// >> source activate
+
