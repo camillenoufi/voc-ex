@@ -3,7 +3,7 @@ function entries = readInFiles(root_path)
 
 
 %get all files
-savepath = fullfile(root_path,'data_structures','valid_tracks_metadata.mat');
+savepath = fullfile(root_path,'metadata/entry_metadata_structs','full_entries.mat');
 if 0 %exist(savepath, 'file')
     tmp = load(savepath); %Creates new directory within audio directory for evaluation snippets
     entries = tmp.entries;
