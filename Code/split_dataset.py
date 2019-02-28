@@ -10,7 +10,6 @@ import copy
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dir', default='/usr/ccrma/media/projects/jordan/Datasets/DAMP-AG/audio/wav/', help="Directory with the master valid DAMP-VocEx dataset")
-#parser.add_argument('--output_dir', default='data/64x64_SIGNS', help="Where to write the new data")
 
 
 # Create Split Partition Directory
