@@ -12,7 +12,7 @@ if __name__ == '__main__':
    # Specify which partition you want (ie. local_balanced vs local_representative vs. development(validation) set)
    partition = '/local_balanced/'
    # Declare an instance of the data loader
-   dl = DataLoader(data_dir,split)
+   dl = DataLoader(data_dir,partition)
 
 
    """
@@ -50,7 +50,7 @@ if __name__ == '__main__':
    - value: (int) is the numeric country/accent label for this specific audio file
             * use this as the 'key' to acces the one-hot vector representation of the label
             * all feature inputs created from a specific audio file will use that audio file's numeric label
-                
+
    """
    label_dict = dl.load_label_dict(metadata_file='local_train_bal.csv')
    print('Length of embedding labels dict:')
