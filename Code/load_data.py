@@ -30,9 +30,23 @@ class DataLoader:
         """
         describe
         """
+        print("split dir is {} \n".format(self.split_dir))
         with open(os.path.join(self.split_dir, fname), 'rb') as handle:
             embedding_dict = pickle.load(handle)
         return embedding_dict
+
+    def convert_embed_dict_to_local(self, embedding_dict):
+        """
+        Function that converts embedding dict returned by  load_embedding_dict to be dictionary from
+        local path names to values rather than absolute
+        """
+        embedding_dict_local = {}
+        for k,v in embedding_dict.items():
+            file = os.path.basename(k)
+            local_path = os.path.join(self.split_dir,file)
+            embedding_dict_local[local_path] = v
+        
+        return embedding_dict_local
 
     def load_onehot_dict(self,label_list_fname='label_nums.csv'):
         #create one-hot vectors from class labels
