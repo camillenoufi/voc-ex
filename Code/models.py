@@ -12,7 +12,6 @@ class BaselineModel:
     Abstract class to show what functions
     each model we implement needs to support 
     '''
-
     def __init__(self):
         '''
         Sets flags for the model to aid in debugging 
@@ -47,13 +46,13 @@ class VanillaCNN(nn.Module):
 
         self.kernel_size = kernel_size # 3
         self.in_channels = in_channels # 1
-        self.out_channels_1 = 18  # random
+        self.out_channels_1 = 18 # random
         self.out_channels_2 = 18 
-        self.out_channels_3 = 18 
+        self.out_channels_3 = 18  # 18/24 
         self.num_classes = num_classes # 10
         self.mp_kernel_size = 2
         self.dropout_rate = dropout_rate
-        self.fc1_input_size = 5382
+        self.fc1_input_size = 5382 #3588 #4784 #4536 #5382
         self.fc1_out_size = 80
         
         # CNN / Max Pool 1
@@ -178,7 +177,7 @@ class simpleKNN(BaselineModel):
         super(simpleKNN, self).__init__()
         self.num_classes = num_classes
         self.weighting = weighting
-        # also pass in country label names to create dict pairing label names to numbers 0-9? 
+
         
     def fit(self, X_train, y_train):
         ''' 
@@ -190,7 +189,7 @@ class simpleKNN(BaselineModel):
         clf.fit(X_train, y_train)
 
         self.clf = clf
-        self.trained = true
+        self.trained = True
 
 
     def predict(self, input):
@@ -202,19 +201,12 @@ class simpleKNN(BaselineModel):
         which is of size (n_samples, n_output) or n_samples ?
         '''
 
-        predictions = self.clf.predict(data) 
-        
+        predictions = self.clf.predict(input)         
         return predictions
 
 
 
 
 
-
-def outputSize(in_size, kernel_size, stride, padding):
-    
-    output = int((in_size - kernel_size + 2*(padding)) / stride) + 1
-    
-    return(output)
 
 

@@ -5,12 +5,14 @@ from models import simpleKNN, VanillaCNN, train_model, eval_model
 from load_data import DataLoader
 import torch.utils.data as data_utils
 import torch
+from sklearn.metrics import accuracy_score
 
 def main():
     
     train_dicts, dev_dicts = load_train_and_dev()
-    #runKNN(train_dicts, dev_dicts)
-    runVanillaCNN(train_dicts, dev_dicts)
+    runKNN(train_dicts, dev_dicts) 
+    #runKNN_withConcat(train_dicts, dev_dicts)
+    #runVanillaCNN(train_dicts, dev_dicts)
 
 
 
@@ -60,15 +62,93 @@ def load_train_and_dev():
 
 
 
+def runKNN_withConcat(train_dicts, dev_dicts):
+    '''
+    Runs KNN model with input that is concatenated spectogram chunks, i.e. input is of size 
+    (batch size   x  96 fq   x   172  timesteps * 48 numslices/file) (or about -- use 8053 instead because its the min) 
+    '''
+    train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
+    dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
+    train_labels_range, dev_labels_range = {}, {}
+    
+    for k,v in train_onehot_dict.items():
+        train_labels_range[k] = np.where(v==1)[0][0]
+
+    for k,v in dev_onehot_dict.items():
+        dev_labels_range[k] = np.where(v==1)[0][0]
+
+    num_samples = len(train_embed_dict)
+    num_slices = 48
+    X_train = np.zeros((num_samples, 96, 8053))                                                                                                                                               
+    y_train = np.zeros((num_samples))   
+    print("Loading X_train")
+
+    idx = 0                                                                                                                                                                                 
+    min_c_length = 10000   
+    # Put together X_train                                                                                                                                                                    
+    # Concatenate all feature slices of one file into one input      
+    for file, feature_list in train_embed_dict.items():                                                                                                                                       
+        num_slices = len(feature_list)                                                                                                                                                         
+        concat_features = None                                                                                                              
+        first = True                                                                                                                                                                           
+        for slice in feature_list:                                                                                                                                                                 
+            if first == True:                                                                                                                                                                    
+                concat_features = slice                                                                                                                                                     
+                first = False                                                                                                                                                                   
+            else:                                                                                                                                                                              
+                concat_features = np.concatenate((concat_features, slice), axis=1)                                                                                                                  
+        concat_features = concat_features[:,:8053]   
+        X_train[idx] = concat_features
+        y_train[idx] = train_labels_range[train_label_dict[file]]                                                                                                                              
+        idx+=1    
+
+    num_dev_samples = len(dev_embed_dict)  
+    X_dev = np.zeros((num_dev_samples, 96, 8053)) 
+    y_dev = np.zeros((num_dev_samples))     
+
+    idx = 0                                                                                                                            
+    min_c_length = 10000                                                                                                               
+    for file, feature_list in dev_embed_dict.items():                                                                                  
+        num_slices = len(feature_list)                                                                                                 
+        concat_features = None                                                                                                         
+        first = True                                                                                                                   
+        for slice in feature_list:                                                                                                     
+            if first == True:                                                                                                          
+                concat_features = slice                                                                                                
+                first = False                                                                                                          
+            else:                                                                                                                      
+                concat_features = np.concatenate((concat_features, slice), axis=1)                                                     
+        concat_features = concat_features[:,:8053]                                                                                     
+        X_dev[idx] = concat_features                                                                                                   
+        y_dev[idx] = dev_labels_range[dev_label_dict[file]]                                                                            
+        idx+=1    
+        
+    X_train = X_train.reshape(num_samples, 96 * 8053)
+    X_dev = X_dev.reshape(num_dev_samples, 96 * 8053)
+
+    num_classes = len(train_onehot_dict)
+    weighting = "uniform"
+    knn = simpleKNN(num_classes, weighting)
+
+    print("Fitting Simple KNN Model")
+    knn.fit(X_train, y_train)
+
+    print("Predicting on the dev set")
+    y_pred = knn.predict(X_dev)
+    score = accuracy_score(y_dev, y_pred)
+    print("Accuracy score: {} ".format(score))
+
 
 def runKNN(train_dicts, dev_dicts):
+    ''' Runs KNN model with all chunks treated as separate input with their own labels 
+    i.e. input is of shape (batchsize * 48 num_slices,  96 fq bins,   172 time) 
+    '''
 
     train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
     dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
     train_labels_range, dev_labels_range = {}, {}
     
-    # convert labels from one-hot-encoding into range (0,num_class) 
-    # really should be done in data loader but here for now
+    # convert labels from one-hot-encoding into range (0,num_class) - should be done in data loader but here for now
     for k,v in train_onehot_dict.items():
         train_labels_range[k] = np.where(v==1)[0][0]
 
@@ -76,64 +156,51 @@ def runKNN(train_dicts, dev_dicts):
         dev_labels_range[k] = np.where(v==1)[0][0]
 
     # Put together X_train
-    # Concatenate all feature slices of one file into one input 
     num_samples = len(train_embed_dict)
-    len_slice = np.zeros((96, 172)) # (96 fbins, 172 time-frames)   
-    X_train = np.zeros((num_samples, 96, 8053))
-    y_train = np.zeros((num_samples))
-
+    num_slices = 48
+    X_train = np.zeros((num_samples*num_slices, 13, 172)) # try with just 13 fq bins?  #96 ,172)) 
+    y_train = np.zeros((num_samples*num_slices)) #, 96, 172))                                                           
+    
     print("Loading X_train")
-
-    idx = 0
-    min_c_length = 10000
+        
+    sample_no = 0
     for file, feature_list in train_embed_dict.items():
         num_slices = len(feature_list)
-        concat_features = None
-        first = True
         for slice in feature_list:
-            if first == True:
-                concat_features = slice
-                first = False
-            else:
-                concat_features = np.concatenate((concat_features, slice), axis=1)
-        concat_features = concat_features[:,:8053]
-        X_train[idx] = concat_features
-        y_train[idx] = train_labels_range[train_label_dict[file]]
-        idx+=1 
+            # discard slices not of (96 x 172)                                                                           
+            if slice.shape == (96, 172):
+                X_train[sample_no] = slice[:13,:]
+                y_train[sample_no] = train_labels_range[train_label_dict[file]]
+                sample_no += 1
 
     print("Loading X_dev")
 
-    # Do the same for X_dev
-    num_samples = len(dev_embed_dict)
-    len_slice = np.zeros((96, 172)) # (96 fbins, 172 time-frames)                                                                           
-    X_dev  = np.zeros((num_samples, 96, 8053))
-    y_dev = np.zeros((num_samples))
-    idx = 0
-    min_c_length = 10000
+    num_dev_samples = len(dev_embed_dict)
+    X_dev  = np.zeros((num_dev_samples*num_slices, 13, 172)) # 96, 172))
+    y_dev = np.zeros((num_dev_samples*num_slices))
+    
+    sample_no = 0
     for file, feature_list in dev_embed_dict.items():
         num_slices = len(feature_list)
-        concat_features = None
-        first = True
         for slice in feature_list:
-            if first == True:
-                concat_features = slice
-                first = False
-            else:
-                concat_features = np.concatenate((concat_features, slice), axis=1)
-        concat_features = concat_features[:,:8053]
-        X_dev[idx] = concat_features
-        y_dev[idx] = dev_labels_range[dev_label_dict[file]]
-        idx+=1
+            if slice.shape == (96, 172):
+                X_dev[sample_no] = slice[:13,:]
+                y_dev[sample_no] = dev_labels_range[dev_label_dict[file]]
+                sample_no += 1
 
+
+    X_train = X_train.reshape(num_samples*num_slices, 13*172) # 96 * 172)
+    X_dev = X_dev.reshape(num_dev_samples*num_slices, 13*172) # 96 * 172)
 
     num_classes = len(train_onehot_dict)
     weighting = "uniform"
     knn = simpleKNN(num_classes, weighting)
+    print("Fitting Simple KNN Model")
     knn.fit(X_train, y_train)
-    
+    print("Predicting on the dev set")
     y_pred = knn.predict(X_dev)
-    score = metrics.accuracy_score(y_dev, y_pred)
-             
+    score = accuracy_score(y_dev, y_pred)
+    print("Accuracy score: {} ".format(score))
 
 
 
