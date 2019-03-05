@@ -8,17 +8,21 @@ import torch
 from sklearn.metrics import accuracy_score
 
 def main():
-    
-    train_dicts, dev_dicts = load_train_and_dev()
+    parser = ArgumentParser()
+    parser.add_argument("--dir", help="location of local data dir", default=".")
+    args = parser.parse_args()
+    dir =  args.dir if args.dir else '/Users/sarahciresi/Desktop/CS224final/localTrainingData'
+    print(dir)
+    train_dicts, dev_dicts = load_train_and_dev(dir)
     runKNN(train_dicts, dev_dicts) 
     #runKNN_withConcat(train_dicts, dev_dicts)
     #runVanillaCNN(train_dicts, dev_dicts)
 
 
 
-def load_train_and_dev():
+def load_train_and_dev(dir):
 
-    data_dir = '/Users/sarahciresi/Desktop/CS224final/localTrainingData'
+    data_dir = dir
     train_partition = 'local_balanced/'
     dl_train = DataLoader(data_dir, train_partition)
     filepath_list_train = dl_train.load_filelist()
