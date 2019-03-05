@@ -40,32 +40,34 @@ class BaselineModel:
 class VanillaCNN(nn.Module):
 
     def __init__(self, kernel_size, in_channels, num_filters, num_classes, dropout_rate = 0.3):
-        
+        ''' 
+        Input size is (batch_size, in_channels, height of input planes, width) 
+        '''
         super(VanillaCNN, self).__init__()
 
         self.kernel_size = kernel_size # 3
-        self.in_channels = in_channels
-        self.out_channels_1 = 32
-        self.out_channels_2 = 64 
-        self.out_channels_3 =  112 #random for now
-        self.num_classes = num_classes
+        self.in_channels = in_channels # 1
+        self.out_channels_1 = 18  # random
+        self.out_channels_2 = 18 
+        self.out_channels_3 = 18 
+        self.num_classes = num_classes # 10
         self.mp_kernel_size = 2
         self.dropout_rate = dropout_rate
-        self.fc1_input_size = 100
-        self.fc1_out_size = 50
+        self.fc1_input_size = 5382
+        self.fc1_out_size = 80
         
         # CNN / Max Pool 1
-        self.conv1 = nn.Conv2d(self.in_channels, self.out_channels_1, self.kernel_size, stride=1, padding=0)
+        self.conv1 = nn.Conv2d(self.in_channels, self.out_channels_1, self.kernel_size, stride=1, padding=1)
         self.relu = nn.ReLU()
         self.pool1 = nn.MaxPool2d(self.mp_kernel_size, stride=2, padding=1)  # 2x2 MP with padding
 
         # CNN / Max Pool 2  
-        self.conv2 = nn.Conv2d(self.out_channels_1, self.out_channels_2, self.kernel_size, stride=1, padding=0)
+        self.conv2 = nn.Conv2d(self.out_channels_1, self.out_channels_2, self.kernel_size, stride=1, padding=1)
         self.relu = nn.ReLU()
         self.pool2 =  nn.MaxPool2d(self.mp_kernel_size, stride=2, padding=1)
  
         # CNN / Max Pool 3 
-        self.conv3 = nn.Conv2d(self.out_channels_2, self.out_channels_3, self.kernel_size, stride=1, padding=0)
+        self.conv3 = nn.Conv2d(self.out_channels_2, self.out_channels_3, self.kernel_size, stride=1, padding=1)
         self.relu = nn.ReLU()
         self.pool3 = nn.MaxPool2d(self.mp_kernel_size, stride=2, padding=1)
 
@@ -76,26 +78,25 @@ class VanillaCNN(nn.Module):
     def forward(self, x_input):
         ''' Forward maps from x_input to x_conv_out 
                                                                                                                                   
-        input is x_reshaped of shape (batch  * ? * ?) 
+        input x_input is of shape (batch_size, in_channels, height of input planes, width )  
                                                      
         returns: x_out of shape (batch * ?)                                                                                                                                     
         '''
-        batch_size, _  = x_input.shape 
 
-        x_conv1 = self.conv1(x_input)     
+        batch_size, in_channels, height, width  = x_input.shape 
+
+        x_conv1 = self.conv1(x_input.float())     
         x_maxpool1 = self.pool1(F.relu(x_conv1))
-        
+
         x_conv2 = self.conv2(x_maxpool1)
         x_maxpool2 = self.pool2(F.relu(x_conv2))
 
         x_conv3 = self.conv2(x_maxpool2)
         x_maxpool3 = self.pool2(F.relu(x_conv3))
-        
-        # reshape (flatten) to be batch size * all other dims
-        #x_out = x_maxpool3.view(-1, dim1 * dim2 * dim3)  
-        x_out = x_maxpool3.view(batch_size, -1)
 
-        x_out = F.relu(self.fc1(x_maxpool3))  
+        # reshape (flatten) to be batch size * all other dims
+        x_out = x_maxpool3.view(batch_size, -1)
+        x_out = F.relu(self.fc1(x_out))  
         x_out = self.fc2(x_out)
 
         return x_out
@@ -103,24 +104,25 @@ class VanillaCNN(nn.Module):
 
 
 
-def train_model(model, train_data, batch_size, learning_rate, num_epochs):
+def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs):
     ''' 
     Trains a given model
     '''
 
     model.train()  # set in train mode
-    print(train_data)
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)  
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)      
     
+    total_steps = len(train_data_loader)
+    loss_list = []
+    acc_list = []
+
     for epoch in range(0,num_epochs):
         running_loss = 0.0
-        
-        for i, batch in enumerate(train_data):
+        for i, batch in enumerate(train_data_loader):
 
-            print(batch)
             inputs, labels = batch
-            
+
             #Set the parameter gradients to zero
             optimizer.zero_grad()
             
@@ -129,11 +131,42 @@ def train_model(model, train_data, batch_size, learning_rate, num_epochs):
             
             # compute the loss and optimizee
             loss_ = loss_fn(outputs, labels)
+            loss_list.append(loss_.item())
             loss_.backward()
             optimizer.step()
             
             running_loss += loss_
+            
+            # track accuracy
+            total = labels.size(0)
+            _, predicted = torch.max(outputs.data, 1)
+            correct = (predicted == labels).sum().item()
+            acc_list.append(correct / total)
+            
+            if (i + 1) % 10 == 0:
+                print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.2f}%'
+                      .format(epoch + 1, num_epochs, i + 1, total_steps, loss_.item(),
+                              (correct / total) * 100))
+                
 
+
+def eval_model(model, dev_data_loader):
+
+    model.eval()
+    loss_fn = nn.CrossEntropyLoss()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        running_eval_loss = 0
+        for inputs, labels in dev_data_loader:
+            outputs = model(inputs)
+            loss_ = loss_fn(outputs, labels)
+            running_eval_loss += loss_
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+        print('Test Accuracy of the model on the dev inputs: {} %'.format((correct / total) * 100))
 
 
 

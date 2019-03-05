@@ -1,9 +1,10 @@
 from argparse import ArgumentParser
 import random
 import numpy as np
-from models import simpleKNN, VanillaCNN, train_model
+from models import simpleKNN, VanillaCNN, train_model, eval_model
 from load_data import DataLoader
-
+import torch.utils.data as data_utils
+import torch
 
 def main():
     
@@ -136,77 +137,106 @@ def runKNN(train_dicts, dev_dicts):
 
 
 
-def runVanillaCNN(train_dicts, dev_dicts):
-    
+
+
+
+def setup_data_CNN(train_dicts, dev_dicts):
+    '''
+    Function that handles all the extra data set up before training / evaluting the CNN
+    '''
     train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
     dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
     train_labels_range, dev_labels_range = {}, {}
     num_classes = len(train_onehot_dict)
 
+    for k,v in train_onehot_dict.items():
+        train_labels_range[k] = np.where(v==1)[0][0]
+
+    for k,v in dev_onehot_dict.items():
+        dev_labels_range[k] = np.where(v==1)[0][0]
+
     # Put together X_train   
-    # Concatenate all feature slices of one file into one input 
     num_samples = len(train_embed_dict)
-    #len_slice = np.zeros((96, 172)) # (96 fbins, 172 time-frames)                                                                               
-    X_train = np.zeros((num_samples, 96, 8053))
-    y_train = np.zeros((num_samples, num_classes))
+    num_slices = 48  
+
+    X_train = np.zeros((num_samples*num_slices, 96, 172))
+    y_train = np.zeros((num_samples*num_slices)) #, 96, 172))
 
     print("Loading X_train")
 
-    idx = 0
-    min_c_length = 10000
+    sample_no = 0
     for file, feature_list in train_embed_dict.items():
         num_slices = len(feature_list)
-        concat_features = None
-        first = True
         for slice in feature_list:
-            if first == True:
-                concat_features = slice
-                first = False
-            else:
-                concat_features = np.concatenate((concat_features, slice), axis=1)
-        concat_features = concat_features[:,:8053]
-        X_train[idx] = concat_features
-        y_train[idx] = train_onehot_dict[train_label_dict[file]].flatten()
-        idx+=1
-
-
+            # discard slices not of (96 x 172) 
+            if slice.shape == (96, 172):
+                X_train[sample_no] = slice
+                y_train[sample_no] = train_labels_range[train_label_dict[file]] 
+                sample_no += 1
+                
     # Do the same for X_dev
     print("Loading X_dev")
 
-    num_samples = len(dev_embed_dict)
-    X_dev  = np.zeros((num_samples, 96, 8053))
-    y_dev = np.zeros((num_samples, num_classes))
-
-    idx = 0
-    min_c_length = 10000
+    num_dev_samples = len(dev_embed_dict)
+    X_dev  = np.zeros((num_dev_samples*num_slices, 96, 172))
+    y_dev = np.zeros((num_dev_samples*num_slices)) 
+    
+    sample_no = 0
     for file, feature_list in dev_embed_dict.items():
         num_slices = len(feature_list)
-        concat_features = None
-        first = True
         for slice in feature_list:
-            if first == True:
-                concat_features = slice
-                first = False
-            else:
-                concat_features = np.concatenate((concat_features, slice), axis=1)
-        concat_features = concat_features[:,:8053]
-        X_dev[idx] = concat_features
-        y_dev[idx] = dev_onehot_dict[dev_label_dict[file]].flatten()
-        idx+=1
+            if slice.shape == (96, 172):
+                X_dev[sample_no] = slice
+                y_dev[sample_no] = dev_labels_range[dev_label_dict[file]]
+                sample_no += 1
 
     kernel_size = 3
-    in_channels = 96 #? 
-    num_filters = 50 #unused
+    in_channels = 1
+    num_filters = 18 # unused
     dropout = 0.3
-    learning_rate = 0.01 
-    num_epochs = 50
+    learning_rate = 0.001 
+    num_epochs = 10
 
-    # Batch the data for training and dev sets
-    train_data = (X_train, y_train)
-    dev_data = (X_dev, y_dev)
+    # Batch the data for training and dev set
+    X_train = torch.from_numpy(X_train).unsqueeze(1).double()
+    y_train = torch.from_numpy(y_train).long()
+    X_dev = torch.from_numpy(X_dev).unsqueeze(1).double()
+    y_dev = torch.from_numpy(y_dev).long()
     
+
+    train_data = data_utils.TensorDataset(X_train, y_train)
+    train_loader = data_utils.DataLoader(train_data, batch_size = 80, shuffle=True)
+    dev_data = data_utils.TensorDataset(X_dev, y_dev)
+    dev_loader = data_utils.DataLoader(dev_data, batch_size = 80, shuffle=True)
+
+    return train_loader, dev_loader
+
+
+
+def runVanillaCNN(train_dicts, dev_dicts):
+
+    train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
+    dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
+    train_labels_range, dev_labels_range = {}, {}
+    num_classes = len(train_onehot_dict)
+    num_samples = len(train_embed_dict)
+    num_dev_samples = len(dev_embed_dict)
+
+    kernel_size = 3
+    in_channels = 1
+    num_filters = 18 # unused                                                                                        
+    dropout = 0.5
+    learning_rate = 0.001
+    num_epochs = 8
+
+    train_loader, dev_loader = setup_data_CNN(train_dicts, dev_dicts)
     cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout)
-    train_model(cnn, train_data, num_samples, learning_rate, num_epochs)
+    train_model(cnn, train_loader, num_samples, learning_rate, num_epochs)
+    torch.save(cnn.state_dict(), "trained_model_params.bin")
+    eval_model(cnn, dev_loader)
+
+
+
 
 if __name__ == '__main__':
     main()
