@@ -3,6 +3,7 @@ import random
 import numpy as np
 from models import simpleKNN, VanillaCNN, train_model, eval_model
 from load_data import DataLoader
+from crnn import CRNN
 import torch.utils.data as data_utils
 import torch
 from sklearn.metrics import accuracy_score
@@ -14,9 +15,10 @@ def main():
     dir =  args.dir if args.dir else '/Users/sarahciresi/Desktop/CS224final/localTrainingData'
     print(dir)
     train_dicts, dev_dicts = load_train_and_dev(dir)
-    runKNN(train_dicts, dev_dicts) 
+    #runKNN(train_dicts, dev_dicts) 
     #runKNN_withConcat(train_dicts, dev_dicts)
     #runVanillaCNN(train_dicts, dev_dicts)
+    runCRNN(train_dicts, dev_dicts)
 
 
 
@@ -307,6 +309,36 @@ def runVanillaCNN(train_dicts, dev_dicts):
     eval_model(cnn, dev_loader)
 
 
+
+def runCRNN(train_dicts, dev_dicts):
+    train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
+    dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
+    train_labels_range, dev_labels_range = {}, {}
+    num_classes = len(train_onehot_dict)
+    num_samples = len(train_embed_dict)
+    num_dev_samples = len(dev_embed_dict)
+
+    
+    # Hyper parameters
+    dropout_rate = 0.3
+    embed_size = 128
+    hidden_size = 128
+    num_layers = 2
+    input_size = 42
+    num_epochs = 10
+    learning_rate = 0.001
+    
+    sequence_length = 172
+    num_classes = 10
+    batch_size = 100
+    num_epochs = 8
+
+
+    train_loader, dev_loader = setup_data_CNN(train_dicts, dev_dicts)
+    cnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, dropout_rate)
+    train_model(cnn, train_loader, num_samples, learning_rate, num_epochs)
+    torch.save(cnn.state_dict(), "trained_model_params.bin")
+    eval_model(cnn, dev_loader)
 
 
 if __name__ == '__main__':
