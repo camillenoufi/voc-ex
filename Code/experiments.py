@@ -327,7 +327,6 @@ def runCRNN(train_dicts, dev_dicts):
     input_size = 42
     num_epochs = 10
     learning_rate = 0.001
-    
     sequence_length = 172
     num_classes = 10
     batch_size = 100
