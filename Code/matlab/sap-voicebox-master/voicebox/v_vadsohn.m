@@ -116,7 +116,7 @@ else
     % default algorithm constants
 
     qq.of=2;        % overlap factor = (fft length)/(frame increment)
-    qq.pr=0.7;      % Speech probability threshold
+    qq.pr=0.95;      % Speech probability threshold
     qq.ts=0.1;      % mean talkspurt length (100 ms)
     qq.tn=0.05;     % mean silence length (50 ms)
     qq.ti=10e-3;    % desired output frame increment (10 ms)

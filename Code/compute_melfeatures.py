@@ -9,20 +9,20 @@ import librosa, librosa.display
 import pickle
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_dir', default='/Users/camillenoufi/Documents/datasets/VocEx-local/local_rep/', help="Directory with the master valid DAMP-VocEx dataset")
-parser.add_argument('--out_file', default='dict_trainRep_feats.pkl', help="output Pickle File containing feature dictionary")
+parser.add_argument('--data_dir', default='/Users/camillenoufi/Documents/datasets/VocEx-local/local_balanced/', help="Directory with the master valid DAMP-VocEx dataset")
+parser.add_argument('--out_file', default='dict_trainBal_feats.pkl', help="output Pickle File containing feature dictionary")
 
 
 # chop spectrogram into feature slices
 def sliceFeatures(S,nsec):
     feature_list = []
     (_,N) = S.shape
-    slice_size = int(np.floor((N/nsec)*4)) #frame/sec * feature length in seconds
-    hop_size = int(np.floor(slice_size*0.25))
+    slice_size = int(np.floor((N/nsec)*4.75)) #frame/sec * feature length in seconds
+    hop_size = int(np.floor(slice_size*0.50))
 
     i=0;
     while i < N:
-        this_slice = S[:,i:i+slice_size]
+        this_slice = S[:,i:i+hop_size]
         feature_list.append(this_slice)
         i = i+slice_size
     return feature_list
@@ -35,9 +35,10 @@ def computeMelFeatureSlices(file):
     S = librosa.feature.melspectrogram(x, sr=fs, n_fft=2048, hop_length=512, power=2.0)
     #S -= (np.mean(S, axis=0) + 1e-8)
     S = librosa.power_to_db(S)
-    S = S[:96,:]
+    S = S[:80,:]
     ids = np.where(S<-60)
     S[ids[0],ids[1]] = 0
+    S = sp.stats.zscore(S,axis=None);
     feature_list = sliceFeatures(S,nsec)
     return feature_list
 
@@ -49,7 +50,9 @@ if __name__ == '__main__':
    args = parser.parse_args()
    assert os.path.isdir(args.data_dir), "Couldn't find the dataset at {}".format(args.data_dir)
    master_path = args.data_dir
+   print(master_path)
    out_file = args.out_file
+   print(out_file)
 
    # Declare variables
    wavX = '.wav'
