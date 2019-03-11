@@ -1,0 +1,39 @@
+% perform vad on balanced dataset
+
+addpath('sap-voicebox-master/voicebox');
+
+metadata_path = '/usr/ccrma/media/projects/jordan/Datasets/DAMP-AG/metadata/mat_files/split';
+
+% Metadata filenames
+trainBal_metadata = 'train_top10localesBalanced_metadata.mat';
+trainAll_metadata = 'train_top10locales_metadata.mat';
+dev_metadata = 'dev_top10locales_metadata.mat';
+test_metadata = 'test_top10locales_metadata.mat';
+
+%% Train All
+in_path = '/usr/ccrma/media/projects/jordan/Datasets/DAMP-AG/audio/wav/train/';
+out_dir = 'VAD_top10_all';
+train_metadata_path = fullfile(metadata_path,trainAll_metadata);
+%%
+
+function performVAD(metadata_path,in_path,out_dir)
+
+metadata = load(metadata_path);
+
+out_path = fullfile(in_path,out_dir);
+if ~exist(out_path,'dir')
+    mkdir(out_path);
+end
+
+for i=1:length(metadata)
+    fname = metadata(i).name;
+    [y,fs] = audioread(fullfile(in_path,fname);
+    [vs,~] = v_vadsohn(y,fs);
+    len = min(length(y),length(vs));
+    out = y(1:len);
+    out = out(vs==1);
+    audiowrite(fullfile(out_path,metadata(i).name),out,fs);
+    disp(i);
+end
+
+end
