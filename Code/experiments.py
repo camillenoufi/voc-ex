@@ -20,10 +20,10 @@ def main():
     dir =  args.dir if args.dir else '/home/group/dataset'  #dataset location in Azure VM
     train_dir =  args.train_dir if args.train_dir else 'train'  #dataset location in Azure VM
     dev_dir =  args.dev_dir if args.dev_dir else 'dev'  #dataset location in Azure VM
-    vm_flag = args.vm_flag if args.dev_dir else 0
+    vm_flag = args.vm_flag if args.dev_dir else '0'
     print(dir)
 
-    if (vm_flag==1):
+    if (vm_flag=='1'):
         print("Training on Azure VM GPU...")
     else:
         print("Training on local datasets...")
@@ -59,7 +59,7 @@ def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
     '''
     Set label/metadata filenames depending on run version (local or full-azure)
     '''
-    if (vm_flag==1):
+    if (vm_flag=='1'):
         train_fname = 'train_melfeats_balanced.pkl'
         train_labels_fname = 'trainBalanced_labels.csv'
         dev_fname = 'dev_melfeats_all.pkl'
@@ -161,7 +161,7 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims):
 
     # Hyper-parameters
     batch_size = 128;
-    kernel_size = 5
+    kernel_size = 3
     in_channels = 1
     num_filters = 64
     dropout_rate = 0.3
