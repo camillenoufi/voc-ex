@@ -22,15 +22,15 @@ class DataLoader:
         describe
         """
         assert os.path.isdir(self.split_dir), "Couldn't find the dataset at {}".format(self.split_dir)
+        print("partition dir is {} \n".format(self.split_dir))
         filenames = os.listdir(self.split_dir)
         filepath_list = [os.path.join(self.split_dir,f) for f in filenames if f.endswith('.wav')]
         return filepath_list
 
-    def load_embedding_dict(self,fname='dict_trainBal_feats.pkl'):
+    def load_embedding_dict(self,fname):
         """
         describe
         """
-        print("split dir is {} \n".format(self.split_dir))
         with open(os.path.join(self.split_dir, fname), 'rb') as handle:
             embedding_dict = pickle.load(handle)
         return embedding_dict
@@ -45,7 +45,7 @@ class DataLoader:
             file = os.path.basename(k)
             local_path = os.path.join(self.split_dir,file)
             embedding_dict_local[local_path] = v
-        
+
         return embedding_dict_local
 
     def load_onehot_dict(self,label_list_fname='label_nums.csv'):
@@ -60,12 +60,12 @@ class DataLoader:
             label_vec_dict[l] = this_onehot
         return label_vec_dict
 
-    def load_label_dict(self,metadata_file='local_train_bal.csv'):
-        feat_label_dict = {}
-        df = pd.read_csv(os.path.join(self.data_dir, metadata_file))
+    def load_label_dict(self, metadata_file):
+        label_dict = {}
+        df = pd.read_csv(os.path.join(self.split_dir, metadata_file))
         data = df.values
         for entry in data:
             path_key = os.path.join(self.split_dir, entry[0])
-            label = entry[-1]
-            feat_label_dict[path_key] = label
-        return feat_label_dict
+            label = entry[-1] #this is because the country-locale code in the csv file is the last (farthest right) column in the table
+            label_dict[path_key] = label
+        return label_dict

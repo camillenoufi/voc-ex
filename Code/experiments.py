@@ -12,82 +12,227 @@ np.set_printoptions(threshold=np.nan)
 def main():
     parser = ArgumentParser()
     parser.add_argument("--dir", help="location of local data dir", default=".")
+    parser.add_argument("--train_dir", help="name of the train partition folder, must be a subfolder of 'dir' ", default="train")
+    parser.add_argument("--dev_dir", help="name of the dev partition folder, must be a subfolder of 'dir' ", default="dev")
     parser.add_argument("--model", help="one of  knn, cnn or crnn ", default="crnn")
+    parser.add_argument("--vm_flag", help="0 = local, 1 = Azure VM", default=0)
     args = parser.parse_args()
-    dir =  args.dir if args.dir else '/Users/sarahciresi/Desktop/CS224final/localTrainingData'
+    dir =  args.dir if args.dir else '/home/group/dataset'  #dataset location in Azure VM
+    train_dir =  args.train_dir if args.train_dir else 'train'  #dataset location in Azure VM
+    dev_dir =  args.dev_dir if args.dev_dir else 'dev'  #dataset location in Azure VM
+    vm_flag = args.vm_flag if args.dev_dir else 0
     print(dir)
-    train_dicts, dev_dicts = load_train_and_dev(dir)
+
+    if (vm_flag==1):
+        print("Training on Azure VM GPU...")
+    else:
+        print("Training on local datasets...")
+
+    train_dicts, dev_dicts = load_train_and_dev(dir,train_dir,dev_dir,vm_flag)
     model = args.model
+    fbins = 80
+    time_steps = 204;
+    input_dims = (fbins,time_steps)
+
     if args.model == 'knn':
-        print("Running KNN")
-        runKNN(train_dicts, dev_dicts) 
+        print("Running KNN...")
+        runKNN(train_dicts, dev_dicts, input_dims)
         #runKNN_withConcat(train_dicts, dev_dicts)
     if args.model == 'cnn':
-        print("Running CNN")
-        runVanillaCNN(train_dicts, dev_dicts)
+        print("Running CNN...")
+        runVanillaCNN(train_dicts, dev_dicts, input_dims)
     if args.model == 'crnn':
-        print("Running CRNN")
-        runCRNN(train_dicts, dev_dicts)
+        print("Running CRNN...")
+        runCRNN(train_dicts, dev_dicts, input_dims)
 
 
-def load_train_and_dev(dir):
+def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
 
-
-    #data_dir = '/Users/sarahciresi/Desktop/CS224final/localTrainingData'
-    #data_dir = '/Users/sarahciresi/Desktop/CS224final/VocEx-local'
-    data_dir = dir
-    train_partition = 'local_balanced/'
-    dl_train = DataLoader(data_dir, train_partition)
+    print("Train:")
+    dl_train = DataLoader(dir, train_dir)
     filepath_list_train = dl_train.load_filelist()
 
-    dev_partition = 'local_dev/'
-    dl_dev = DataLoader(data_dir, dev_partition)
+    print("Validation:")
+    dl_dev = DataLoader(dir, dev_dir)
     filepath_list_dev = dl_dev.load_filelist()
 
-    '''Load precomputed log-mel-spectrogram features.  Returns dict{key:value}: 
-    - key: (str) is a string of a specific /path/to/audiofile.wav in the local training(or dev) set folder    
-    - value: (list[ 2D np.array ])  
-    * len(list) = total number of feature arrays (inputs) created from one audio file    
-    * np.array = 2D slice of mel spectrogram (this is a single "input" into the neural network)                 
-    * np.array.shape = (96 fbins, 172 time-frames)   **each time frame is ~10ms     
     '''
-    train_embed_dict = dl_train.load_embedding_dict(fname='dict_trainBal_feats_NotNorm.pkl')   
-    train_embed_dict = dl_train.convert_embed_dict_to_local(train_embed_dict)
+    Set label/metadata filenames depending on run version (local or full-azure)
+    '''
+    if (vm_flag==1):
+        train_fname = 'train_melfeats_balanced.pkl'
+        train_labels_fname = 'trainBalanced_labels.csv'
+        dev_fname = 'dev_melfeats_all.pkl'
+        dev_labels_fname = 'dev_labels.csv'
+    else:
+        train_fname = 'dict_trainBal_feats.pkl'
+        train_labels_fname = 'local_train_bal.csv'
+        dev_fname = 'dict_dev_feats.pkl'
+        dev_labels_fname = 'local_dev.csv'
+    # For both versions:
+    label_list_fname = 'label_nums.csv'
 
-    '''key: (str) is a string of a specific /path/to/audiofile.wav in the local training(or dev) set folder  
-    value: (int) is the numeric country/accent label for this specific audio file  
+
+    '''Load precomputed log-mel-spectrogram features.  Returns dict{key:value}:
+    - key: (str) is a string of a specific /path/to/audiofile.wav in the local training(or dev) set folder
+    - value: (list[ 2D np.array ])
+    * len(list) = total number of feature arrays (inputs) created from one audio file
+    * np.array = 2D slice of mel spectrogram (this is a single "input" into the neural network)
+    * np.array.shape = (fbins, time-frames)   **each time frame is ~10ms
+    '''
+    train_embed_dict = dl_train.convert_embed_dict_to_local(dl_train.load_embedding_dict(fname=train_fname))
+
+    '''key: (str) is a string of a specific /path/to/audiofile.wav in the local training(or dev) set folder
+    value: (int) is the numeric country/accent label for this specific audio file
     use this as the 'key' to acces the one-hot vector representation of the label'''
-    train_label_dict = dl_train.load_label_dict(metadata_file='local_train_bal.csv')
+    train_label_dict = dl_train.load_label_dict(metadata_file=train_labels_fname)
 
-    '''key: (int) is a number representing a specific country/accent label (arbitrary)     
-    value: (1D np.array) : one-hot vector representing the "label" answer.  Use this to compare to the softmax output '''
-    train_onehot_dict = dl_train.load_onehot_dict(label_list_fname='label_nums.csv')
+    '''key: (int) is a number representing a specific country/accent label (arbitrary)
+    value: (1D np.array) : one-hot vector representing the label.  Use this to compare to the softmax output '''
+    train_onehot_dict = dl_train.load_onehot_dict(label_list_fname=label_list_fname)
 
+    dev_embed_dict = dl_dev.convert_embed_dict_to_local(dl_dev.load_embedding_dict(fname=dev_fname))
 
-    dev_embed_dict = dl_dev.load_embedding_dict(fname='dict_dev_feats_NotNorm.pkl')
-    dev_embed_dict = dl_dev.convert_embed_dict_to_local(dev_embed_dict)
-
-    dev_label_dict = dl_dev.load_label_dict(metadata_file='local_dev.csv')
-    dev_onehot_dict = dl_dev.load_onehot_dict(label_list_fname='label_nums.csv')
+    dev_label_dict = dl_dev.load_label_dict(metadata_file=dev_labels_fname)
+    dev_onehot_dict = dl_dev.load_onehot_dict(label_list_fname=label_list_fname)
 
     train_dicts = train_embed_dict, train_label_dict, train_onehot_dict
     dev_dicts = dev_embed_dict, dev_label_dict, dev_onehot_dict
 
-    
+    #test
+    # print(len(train_embed_dict))
+    # print(len(train_label_dict))
+    # print(len(dev_embed_dict))
+    # print(len(dev_label_dict))
+    # print(aaa)
+
     return train_dicts, dev_dicts
 
 
+def setup_data_CNN(data_dicts, input_dims, batch_size):
+    '''
+    Function that handles all the extra data set up before training / evaluting the CNN
+    '''
+    embed_dict, label_dict, onehot_dict = data_dicts
+    labels_range = {}
+    fbins = input_dims[0]
+    time_steps = input_dims[1]
+    start_frame = 4;  #chop off first 4 frames of each input
+
+    for k,v in onehot_dict.items():
+        labels_range[k] = np.where(v==1)[0][0]
 
 
+    print("...Loading input and labels")
+    list_X = []
+    list_y = []
+
+    for file, feature_list in embed_dict.items():
+        feature_list = feature_list[start_frame:]
+        for i, slice in enumerate(feature_list):
+            # discard slices not of (80 x 204)
+            if slice.shape == (fbins, time_steps):
+                list_X.append(slice)
+                list_y.append(labels_range[label_dict[file]])
+
+    X = np.stack(list_X, axis = 2)
+    y = np.stack(list_y, axis = 0)
+
+    # Conver to torch tensors, Batch the data for training and dev set
+    X = torch.from_numpy(X).permute(2,0,1).unsqueeze(1).double()
+    y = torch.from_numpy(y).long()
+    # print(X.size())
+    # print(y.size())
+
+    dataset = data_utils.TensorDataset(X, y)
+    loader = data_utils.DataLoader(dataset, batch_size = batch_size, shuffle=True)
+
+    return loader
+
+
+def runVanillaCNN(train_dicts, dev_dicts, input_dims):
+
+    train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
+    dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
+    train_labels_range, dev_labels_range = {}, {}
+    num_classes = len(train_onehot_dict)
+    num_samples = len(train_embed_dict)
+    num_dev_samples = len(dev_embed_dict) ###
+
+    # Hyper-parameters
+    batch_size = 128;
+    kernel_size = 5
+    in_channels = 1
+    num_filters = 64
+    dropout_rate = 0.3
+    learning_rate = 0.001
+    num_epochs = 8
+    # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
+
+    # Format Data for Train and Eval
+    print("Setting up TRAINING data for model...")
+    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
+    print("Setting up VALIDATION data for model...")
+    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size)
+
+    # Initialize and Train Model
+    cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
+    train_model(cnn, train_loader, num_samples, learning_rate, num_epochs)
+    torch.save(cnn.state_dict(), "trained_cnn_model_params.bin")
+
+    # Evaluate Model
+    eval_model(cnn, dev_loader)
+
+
+
+def runCRNN(train_dicts, dev_dicts, input_dims):
+    train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
+    dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
+    train_labels_range, dev_labels_range = {}, {}
+    num_classes = len(train_onehot_dict)
+    num_samples = len(train_embed_dict)
+    num_dev_samples = len(dev_embed_dict)
+
+
+    # Hyper parameters
+    batch_size = 128
+    dropout_rate = 0.3
+    embed_size = 128
+    hidden_size = 128
+    num_layers = 2
+    input_size = 42
+    learning_rate = 0.001
+    sequence_length = input_dims[1] #timesteps per mel "image"
+    #num_classes = 10
+    num_epochs = 8
+
+    # Format Data for Train and Eval
+    print("Setting up TRAINING data for model...")
+    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
+    print("Setting up VALIDATION data for model...")
+    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size)
+
+    # Initialize and Train Model
+    crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, dropout_rate)
+    train_model(crnn, train_loader, num_samples, learning_rate, num_epochs)
+    torch.save(crnn.state_dict(), "trained_crnn_model_params.bin")
+
+    # Evaluate Model
+    eval_model(crnn, dev_loader)
+
+
+
+
+# OLD KNN CODE - DOES NOT ADJUST FOR NEW INPUT SIZES!!!
 def runKNN_withConcat(train_dicts, dev_dicts):
     '''
-    Runs KNN model with input that is concatenated spectogram chunks, i.e. input is of size 
-    (batch size   x  96 fq   x   172  timesteps * 48 numslices/file) (or about -- use 8053 instead because its the min) 
+    Runs KNN model with input that is concatenated spectogram chunks, i.e. input is of size
+    (batch size   x  96 fq   x   172  timesteps * 48 numslices/file) (or about -- use 8053 instead because its the min)
     '''
     train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
     dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
     train_labels_range, dev_labels_range = {}, {}
-    
+
     for k,v in train_onehot_dict.items():
         train_labels_range[k] = np.where(v==1)[0][0]
 
@@ -96,50 +241,50 @@ def runKNN_withConcat(train_dicts, dev_dicts):
 
     num_samples = len(train_embed_dict)
     num_slices = 48
-    X_train = np.zeros((num_samples, 96, 8053))                                                                                                                                               
-    y_train = np.zeros((num_samples))   
+    X_train = np.zeros((num_samples, 96, 8053))
+    y_train = np.zeros((num_samples))
     print("Loading X_train")
 
-    idx = 0                                                                                                                                                                                 
-    min_c_length = 10000   
-    # Put together X_train by concatenating all feature slices of one file into one input      
-    for file, feature_list in train_embed_dict.items(): 
-        num_slices = len(feature_list)             
-        concat_features = None                
-        first = True                       
-        for slice in feature_list:       
-            if first == True:         
-                concat_features = slice 
-                first = False       
-            else:           
-                concat_features = np.concatenate((concat_features, slice), axis=1)                                                         
-    
-        concat_features = concat_features[:,:8053]   
+    idx = 0
+    min_c_length = 10000
+    # Put together X_train by concatenating all feature slices of one file into one input
+    for file, feature_list in train_embed_dict.items():
+        num_slices = len(feature_list)
+        concat_features = None
+        first = True
+        for slice in feature_list:
+            if first == True:
+                concat_features = slice
+                first = False
+            else:
+                concat_features = np.concatenate((concat_features, slice), axis=1)
+
+        concat_features = concat_features[:,:8053]
         X_train[idx] = concat_features
-        y_train[idx] = train_labels_range[train_label_dict[file]]                                                                                                                              
-        idx+=1    
+        y_train[idx] = train_labels_range[train_label_dict[file]]
+        idx+=1
 
-    num_dev_samples = len(dev_embed_dict)  
-    X_dev = np.zeros((num_dev_samples, 96, 8053)) 
-    y_dev = np.zeros((num_dev_samples))     
+    num_dev_samples = len(dev_embed_dict)
+    X_dev = np.zeros((num_dev_samples, 96, 8053))
+    y_dev = np.zeros((num_dev_samples))
 
-    idx = 0                                                                                                                            
-    min_c_length = 10000                                                                                                               
-    for file, feature_list in dev_embed_dict.items():                                                                                  
-        num_slices = len(feature_list)                                                                                                 
-        concat_features = None                                                                                                         
-        first = True                                                                                                                   
-        for slice in feature_list:                                                                                                     
-            if first == True:                                                                                                          
-                concat_features = slice                                                                                                
-                first = False                                                                                                          
-            else:                                                                                                                      
-                concat_features = np.concatenate((concat_features, slice), axis=1)                                                     
-        concat_features = concat_features[:,:8053]                                                                                     
-        X_dev[idx] = concat_features                                                                                                   
-        y_dev[idx] = dev_labels_range[dev_label_dict[file]]                                                                            
-        idx+=1    
-        
+    idx = 0
+    min_c_length = 10000
+    for file, feature_list in dev_embed_dict.items():
+        num_slices = len(feature_list)
+        concat_features = None
+        first = True
+        for slice in feature_list:
+            if first == True:
+                concat_features = slice
+                first = False
+            else:
+                concat_features = np.concatenate((concat_features, slice), axis=1)
+        concat_features = concat_features[:,:8053]
+        X_dev[idx] = concat_features
+        y_dev[idx] = dev_labels_range[dev_label_dict[file]]
+        idx+=1
+
     X_train = X_train.reshape(num_samples, 96 * 8053)
     X_dev = X_dev.reshape(num_dev_samples, 96 * 8053)
 
@@ -157,14 +302,14 @@ def runKNN_withConcat(train_dicts, dev_dicts):
 
 
 def runKNN(train_dicts, dev_dicts):
-    ''' Runs KNN model with all chunks treated as separate input with their own labels 
-    i.e. input is of shape (batchsize * 48 num_slices,  96 fq bins,   172 time) 
+    ''' Runs KNN model with all chunks treated as separate input with their own labels
+    i.e. input is of shape (batchsize * 48 num_slices,  96 fq bins,   172 time)
     '''
 
     train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
     dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
     train_labels_range, dev_labels_range = {}, {}
-    
+
     # convert labels from one-hot-encoding into range (0,num_class) - should be done in data loader but here for now
     for k,v in train_onehot_dict.items():
         train_labels_range[k] = np.where(v==1)[0][0]
@@ -175,16 +320,16 @@ def runKNN(train_dicts, dev_dicts):
     # Put together X_train
     num_samples = len(train_embed_dict)
     num_slices = 48
-    X_train = np.zeros((num_samples*num_slices, 96, 172)) # try with just 13 fq bins?  #96 ,172)) 
-    y_train = np.zeros((num_samples*num_slices)) #, 96, 172))                           
-    
+    X_train = np.zeros((num_samples*num_slices, 96, 172)) # try with just 13 fq bins?  #96 ,172))
+    y_train = np.zeros((num_samples*num_slices)) #, 96, 172))
+
     print("Loading X_train")
-        
+
     sample_no = 0
     for file, feature_list in train_embed_dict.items():
         num_slices = len(feature_list)
         for slice in feature_list:
-            # discard slices not of (96 x 172)                                                                           
+            # discard slices not of (96 x 172)
             if slice.shape == (96, 172):
                 X_train[sample_no] = slice #[:13,:]
                 y_train[sample_no] = train_labels_range[train_label_dict[file]]
@@ -195,7 +340,7 @@ def runKNN(train_dicts, dev_dicts):
     num_dev_samples = len(dev_embed_dict)
     X_dev  = np.zeros((num_dev_samples*num_slices, 96, 172)) # 96, 172))
     y_dev = np.zeros((num_dev_samples*num_slices))
-    
+
     sample_no = 0
     for file, feature_list in dev_embed_dict.items():
         num_slices = len(feature_list)
@@ -218,137 +363,6 @@ def runKNN(train_dicts, dev_dicts):
     y_pred = knn.predict(X_dev)
     score = accuracy_score(y_dev, y_pred)
     print("Accuracy score: {} ".format(score))
-
-
-
-
-
-
-def setup_data_CNN(train_dicts, dev_dicts):
-    '''
-    Function that handles all the extra data set up before training / evaluting the CNN
-    '''
-    train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
-    dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
-    train_labels_range, dev_labels_range = {}, {}
-    num_classes = len(train_onehot_dict)
-    num_samples =  len(train_embed_dict)
-    fbins = 80
-    time_steps = 204
-
-    for k,v in train_onehot_dict.items():
-        train_labels_range[k] = np.where(v==1)[0][0]
-
-    for k,v in dev_onehot_dict.items():
-        dev_labels_range[k] = np.where(v==1)[0][0]
-
-    # Put together X_train   
-    #X_train = np.empty((fbins, time_steps))
-    #y_train = np.empty(1)
-
-    
-    print("Loading X_train")
-    train_list_X = []
-    train_list_y = []
-
-    for file, feature_list in train_embed_dict.items():
-        feature_list = feature_list[4:]
-        for i, slice in enumerate(feature_list):
-            # discard slices not of (80 x 204)  
-            if slice.shape == (fbins, time_steps):
-                train_list_X.append(slice)
-                train_list_y.append(train_labels_range[train_label_dict[file]])
-                
-    X_train = np.stack(train_list_X, axis = 2)          
-    y_train = np.stack(train_list_y, axis = 0)
-
-
-    # Do the same for X_dev
-    print("Loading X_dev")
-           
-    num_dev_samples = len(dev_embed_dict)-1  ###
-
-    dev_list_X = []
-    dev_list_y = []
-    for file, feature_list in dev_embed_dict.items():
-        feature_list = feature_list[4:]
-        for i, slice in enumerate(feature_list):
-            if slice.shape == (fbins, time_steps):
-                dev_list_X.append(slice)
-                dev_list_y.append(dev_labels_range[dev_label_dict[file]])
-            
-    X_dev = np.stack(dev_list_X, axis=2)
-    y_dev = np.stack(dev_list_y, axis=0)
-
-
-    # Batch the data for training and dev set
-    X_train = torch.from_numpy(X_train).permute(2,0,1).unsqueeze(1).double()
-    y_train = torch.from_numpy(y_train).long()
-
-    X_dev = torch.from_numpy(X_dev).permute(2,0,1).unsqueeze(1).double()
-    y_dev = torch.from_numpy(y_dev).long()
-
-    train_data = data_utils.TensorDataset(X_train, y_train)
-    train_loader = data_utils.DataLoader(train_data, batch_size = 80, shuffle=True)
-    dev_data = data_utils.TensorDataset(X_dev, y_dev)
-    dev_loader = data_utils.DataLoader(dev_data, batch_size = 80, shuffle=True)
-
-    return train_loader, dev_loader
-
-
-
-def runVanillaCNN(train_dicts, dev_dicts):
-
-    train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
-    dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
-    train_labels_range, dev_labels_range = {}, {}
-    num_classes = len(train_onehot_dict)
-    num_samples = len(train_embed_dict)
-    num_dev_samples = len(dev_embed_dict)-1 ###
-
-    kernel_size = 3
-    in_channels = 1
-    num_filters = 18 # unused                                                                                        
-    dropout = 0.3    # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
-    learning_rate = 0.001
-    num_epochs = 8
-
-    train_loader, dev_loader = setup_data_CNN(train_dicts, dev_dicts)
-    cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout)
-    train_model(cnn, train_loader, num_samples, learning_rate, num_epochs)
-    torch.save(cnn.state_dict(), "trained_model_params.bin")
-    eval_model(cnn, dev_loader)
-
-
-
-def runCRNN(train_dicts, dev_dicts):
-    train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
-    dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
-    train_labels_range, dev_labels_range = {}, {}
-    num_classes = len(train_onehot_dict)
-    num_samples = len(train_embed_dict)
-    num_dev_samples = len(dev_embed_dict)
-
-    
-    # Hyper parameters
-    dropout_rate = 0.3
-    embed_size = 128
-    hidden_size = 128
-    num_layers = 2
-    input_size = 42
-    num_epochs = 10
-    learning_rate = 0.001
-    sequence_length = 172
-    num_classes = 10
-    batch_size = 100
-    num_epochs = 8
-
-
-    train_loader, dev_loader = setup_data_CNN(train_dicts, dev_dicts)
-    cnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, dropout_rate)
-    train_model(cnn, train_loader, num_samples, learning_rate, num_epochs)
-    torch.save(cnn.state_dict(), "trained_model_params.bin")
-    eval_model(cnn, dev_loader)
 
 
 if __name__ == '__main__':
