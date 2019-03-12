@@ -52,7 +52,7 @@ class VanillaCNN(nn.Module):
         self.num_classes = num_classes # 10
         self.mp_kernel_size = 2
         self.dropout_rate = dropout_rate
-        self.fc1_input_size = 19008  
+        self.fc1_input_size = 4752  
         #fc1_input_size is dependent on kernel size and num filters, if those change, so will this number
         self.fc1_out_size = 160
 

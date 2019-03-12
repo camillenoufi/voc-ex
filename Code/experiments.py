@@ -23,10 +23,12 @@ def main():
     vm_flag = args.vm_flag if args.dev_dir else '0'
     print(dir)
 
-    if (vm_flag=='1'):
+    if ( vm_flag=='1' and torch.cuda.is_available() ):
         print("Training on Azure VM GPU...")
+        device = torch.device('cuda')
     else:
         print("Training on local datasets...")
+        device = torch.device('cpu')
 
     train_dicts, dev_dicts = load_train_and_dev(dir,train_dir,dev_dir,vm_flag)
     model = args.model
@@ -36,14 +38,14 @@ def main():
 
     if args.model == 'knn':
         print("Running KNN...")
-        runKNN(train_dicts, dev_dicts, input_dims)
+        runKNN(train_dicts, dev_dicts, input_dims, device)
         #runKNN_withConcat(train_dicts, dev_dicts)
     if args.model == 'cnn':
         print("Running CNN...")
-        runVanillaCNN(train_dicts, dev_dicts, input_dims)
+        runVanillaCNN(train_dicts, dev_dicts, input_dims, device)
     if args.model == 'crnn':
         print("Running CRNN...")
-        runCRNN(train_dicts, dev_dicts, input_dims)
+        runCRNN(train_dicts, dev_dicts, input_dims, device)
 
 
 def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
@@ -108,7 +110,7 @@ def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
     return train_dicts, dev_dicts
 
 
-def setup_data_CNN(data_dicts, input_dims, batch_size):
+def setup_data_CNN(data_dicts, input_dims, batch_size, device):
     '''
     Function that handles all the extra data set up before training / evaluting the CNN
     '''
@@ -149,10 +151,17 @@ def setup_data_CNN(data_dicts, input_dims, batch_size):
 
     # Conver to torch tensors, Batch the data for training and dev set
     X = torch.from_numpy(X).permute(2,0,1).unsqueeze(1).double()
+    X = X.to(device)
     y = torch.from_numpy(y).long()
-    print('Torch tensor shapes:')
+    y = y.to(device)
+    print('Input tensor:')
+    print(X.type())
     print(X.size())
+    print(X.device)
+    print('Label tensor:')
+    print(y.type())
     print(y.size())
+    print(y.device)
 
     dataset = data_utils.TensorDataset(X, y)
     loader = data_utils.DataLoader(dataset, batch_size = batch_size, shuffle=True)
@@ -160,7 +169,7 @@ def setup_data_CNN(data_dicts, input_dims, batch_size):
     return loader
 
 
-def runVanillaCNN(train_dicts, dev_dicts, input_dims):
+def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
 
     train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
     dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
@@ -173,7 +182,7 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims):
     batch_size = 128;
     kernel_size = 3
     in_channels = 1
-    num_filters = 64
+    num_filters = 16
     dropout_rate = 0.3
     learning_rate = 0.001
     num_epochs = 8
@@ -181,9 +190,9 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims):
 
     # Format Data for Train and Eval
     print("Setting up TRAINING data for model...")
-    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
+    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size, device)
     print("Setting up VALIDATION data for model...")
-    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size)
+    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size, device)
 
     # Initialize and Train Model
     cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
@@ -195,7 +204,7 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims):
 
 
 
-def runCRNN(train_dicts, dev_dicts, input_dims):
+def runCRNN(train_dicts, dev_dicts, input_dims, device):
     train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
     dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
     train_labels_range, dev_labels_range = {}, {}
@@ -218,9 +227,9 @@ def runCRNN(train_dicts, dev_dicts, input_dims):
 
     # Format Data for Train and Eval
     print("Setting up TRAINING data for model...")
-    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
+    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size, device)
     print("Setting up VALIDATION data for model...")
-    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size)
+    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size, device)
 
     # Initialize and Train Model
     crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, dropout_rate)
@@ -234,7 +243,7 @@ def runCRNN(train_dicts, dev_dicts, input_dims):
 
 
 # OLD KNN CODE - DOES NOT ADJUST FOR NEW INPUT SIZES!!!
-def runKNN_withConcat(train_dicts, dev_dicts):
+def runKNN_withConcat(train_dicts, dev_dicts, device):
     '''
     Runs KNN model with input that is concatenated spectogram chunks, i.e. input is of size
     (batch size   x  96 fq   x   172  timesteps * 48 numslices/file) (or about -- use 8053 instead because its the min)
