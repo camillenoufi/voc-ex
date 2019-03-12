@@ -52,7 +52,7 @@ class VanillaCNN(nn.Module):
         self.num_classes = num_classes # 10
         self.mp_kernel_size = 2
         self.dropout_rate = dropout_rate
-        self.fc1_input_size = 5382 #3588 #4784 #4536 #5382
+        self.fc1_input_size = 5346 #  5382 #3588 #4784 #4536 #5382
         self.fc1_out_size = 80
         
         # CNN / Max Pool 1
@@ -71,6 +71,7 @@ class VanillaCNN(nn.Module):
         self.pool3 = nn.MaxPool2d(self.mp_kernel_size, stride=2, padding=1)
 
         self.drop_out = nn.Dropout()
+        #self.fc1 = nn.Linear(self.fc1_input_size, self.num_classes, bias = True)
         self.fc1 = nn.Linear(self.fc1_input_size, self.fc1_out_size, bias = True)
         self.fc2 = nn.Linear(self.fc1_out_size , self.num_classes, bias = True)  # fully connected to 10 output channels for 10 classes
                                       
@@ -85,6 +86,7 @@ class VanillaCNN(nn.Module):
         batch_size, in_channels, height, width  = x_input.shape 
 
         x_conv1 = self.conv1(x_input.float())     
+
         x_maxpool1 = self.pool1(F.relu(x_conv1))
 
         x_conv2 = self.conv2(x_maxpool1)
@@ -95,6 +97,9 @@ class VanillaCNN(nn.Module):
 
         # reshape (flatten) to be batch size * all other dims
         x_out = x_maxpool3.view(batch_size, -1)
+        x_out = self.drop_out(x_out)
+
+        #x_out = self.fc1(x_out) # one fc vs 2 fc
         x_out = F.relu(self.fc1(x_out))  
         x_out = self.fc2(x_out)
 
@@ -121,13 +126,19 @@ def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs)
         for i, batch in enumerate(train_data_loader):
 
             inputs, labels = batch
-
+            
+            # bin_labels(labels) # bin labels for all slice labels of same country
+ 
             #Set the parameter gradients to zero
             optimizer.zero_grad()
             
             # compute the forward pass
             outputs = model(inputs)
             
+            #print("Outputs: {}".format(outputs))
+            #print("\n")
+            #print("true labels: {} ".format(labels))
+
             # compute the loss and optimizee
             loss_ = loss_fn(outputs, labels)
             loss_list.append(loss_.item())
