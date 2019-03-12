@@ -13,15 +13,22 @@ def main():
 
     parser = ArgumentParser()
     parser.add_argument("--dir", help="location of local data dir", default=".")
+    parser.add_argument("--model", help="one of  knn, cnn or crnn ", default="crnn")
     args = parser.parse_args()
     dir =  args.dir if args.dir else '/Users/sarahciresi/Desktop/CS224final/localTrainingData'
     print(dir)
     train_dicts, dev_dicts = load_train_and_dev(dir)
-    #runKNN(train_dicts, dev_dicts) 
-    #runKNN_withConcat(train_dicts, dev_dicts)
-    #runVanillaCNN(train_dicts, dev_dicts)
-    runCRNN(train_dicts, dev_dicts)
-
+    model = args.model
+    if args.model == 'knn':
+        print("Running KNN")
+        runKNN(train_dicts, dev_dicts) 
+        #runKNN_withConcat(train_dicts, dev_dicts)
+    if args.model == 'cnn':
+        print("Running CNN")
+        runVanillaCNN(train_dicts, dev_dicts)
+    if args.model == 'crnn':
+        print("Running CRNN")
+        runCRNN(train_dicts, dev_dicts)
 
 
 def load_train_and_dev(dir):
@@ -45,7 +52,7 @@ def load_train_and_dev(dir):
     * np.array = 2D slice of mel spectrogram (this is a single "input" into the neural network)                 
     * np.array.shape = (96 fbins, 172 time-frames)   **each time frame is ~10ms     
     '''
-    train_embed_dict = dl_train.load_embedding_dict(fname='dict_trainBal_feats.pkl')   
+    train_embed_dict = dl_train.load_embedding_dict(fname='dict_trainBal_feats_NotNorm.pkl')   
     train_embed_dict = dl_train.convert_embed_dict_to_local(train_embed_dict)
 
     '''key: (str) is a string of a specific /path/to/audiofile.wav in the local training(or dev) set folder  
@@ -58,7 +65,7 @@ def load_train_and_dev(dir):
     train_onehot_dict = dl_train.load_onehot_dict(label_list_fname='label_nums.csv')
 
 
-    dev_embed_dict = dl_dev.load_embedding_dict(fname='dict_dev_feats.pkl')
+    dev_embed_dict = dl_dev.load_embedding_dict(fname='dict_dev_feats_NotNorm.pkl')
     dev_embed_dict = dl_dev.convert_embed_dict_to_local(dev_embed_dict)
 
     dev_label_dict = dl_dev.load_label_dict(metadata_file='local_dev.csv')
