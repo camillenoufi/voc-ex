@@ -9,8 +9,8 @@ import librosa, librosa.display
 import pickle
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_dir', default='/Users/camillenoufi/Documents/datasets/VocEx-local/local_balanced/', help="Directory with the master valid DAMP-VocEx dataset")
-parser.add_argument('--out_file', default='dict_trainBal_feats.pkl', help="output Pickle File containing feature dictionary")
+parser.add_argument('--data_dir', default='/Users/camillenoufi/Documents/datasets/VocEx-local/local_dev/', help="Directory with the master valid DAMP-VocEx dataset")
+parser.add_argument('--out_file', default='dict_dev_feats_NotNorm.pkl', help="output Pickle File containing feature dictionary")
 
 
 # chop spectrogram into feature slices
@@ -22,9 +22,9 @@ def sliceFeatures(S,nsec):
 
     i=0;
     while i < N:
-        this_slice = S[:,i:i+hop_size]
+        this_slice = S[:,i:i+slice_size]
         feature_list.append(this_slice)
-        i = i+slice_size
+        i = i+hop_size
     return feature_list
 
 # Compute Mel spectrogram features and slice
@@ -38,7 +38,7 @@ def computeMelFeatureSlices(file):
     S = S[:80,:]
     ids = np.where(S<-60)
     S[ids[0],ids[1]] = 0
-    S = sp.stats.zscore(S,axis=None);
+    #S = sp.stats.zscore(S,axis=None);
     feature_list = sliceFeatures(S,nsec)
     return feature_list
 
@@ -50,11 +50,13 @@ if __name__ == '__main__':
    args = parser.parse_args()
    assert os.path.isdir(args.data_dir), "Couldn't find the dataset at {}".format(args.data_dir)
    master_path = args.data_dir
+   print('Using dataset at: ')
    print(master_path)
    out_file = args.out_file
+   print('Pickle (.pkl) Feature File will save at: ')
    print(out_file)
 
-   # Declare variables
+   # Declarations
    wavX = '.wav'
    dict_file2feature_list = {}
 
@@ -63,7 +65,7 @@ if __name__ == '__main__':
    filepaths = [os.path.join(master_path, f) for f in filenames if f.endswith(wavX)]
    filepaths.sort()
 
-   # for a file, compute mel spectrogram and slice it into smaller features, and add it to the dictionary
+   # for a file, compute mel spectrogram and slice it into smaller features, then add array of features to the dictionary
    i=1
    for f in filepaths:
        feature_list = computeMelFeatureSlices(f);
