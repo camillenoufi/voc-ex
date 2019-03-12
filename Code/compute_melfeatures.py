@@ -9,6 +9,7 @@ import librosa, librosa.display
 import pickle
 
 parser = argparse.ArgumentParser()
+
 parser.add_argument('--data_dir', default='/Users/camillenoufi/Documents/datasets/VocEx-local/local_dev/', help="Directory with the master valid DAMP-VocEx dataset")
 parser.add_argument('--out_file', default='dict_dev_feats_NotNorm.pkl', help="output Pickle File containing feature dictionary")
 
@@ -22,7 +23,7 @@ def sliceFeatures(S,nsec):
 
     i=0;
     while i < N:
-        this_slice = S[:,i:i+slice_size]
+        this_slice = S[:,i:i+hop_size]
         feature_list.append(this_slice)
         i = i+hop_size
     return feature_list
@@ -39,6 +40,7 @@ def computeMelFeatureSlices(file):
     ids = np.where(S<-60)
     S[ids[0],ids[1]] = 0
     #S = sp.stats.zscore(S,axis=None);
+
     feature_list = sliceFeatures(S,nsec)
     return feature_list
 
@@ -50,6 +52,7 @@ if __name__ == '__main__':
    args = parser.parse_args()
    assert os.path.isdir(args.data_dir), "Couldn't find the dataset at {}".format(args.data_dir)
    master_path = args.data_dir
+
    print('Using dataset at: ')
    print(master_path)
    out_file = args.out_file

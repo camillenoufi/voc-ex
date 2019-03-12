@@ -121,8 +121,11 @@ def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs)
     loss_list = []
     acc_list = []
 
+    print("Starting Training")
+
     for epoch in range(0,num_epochs):
         running_loss = 0.0
+        print("Starting Training ", epoch)
         for i, batch in enumerate(train_data_loader):
 
             inputs, labels = batch
