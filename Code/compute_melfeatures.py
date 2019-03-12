@@ -23,7 +23,7 @@ def sliceFeatures(S,nsec):
 
     i=0;
     while i < N:
-        this_slice = S[:,i:i+hop_size]
+        this_slice = S[:,i:i+slice_size]
         feature_list.append(this_slice)
         i = i+hop_size
     return feature_list

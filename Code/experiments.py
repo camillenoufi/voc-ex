@@ -100,11 +100,10 @@ def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
     dev_dicts = dev_embed_dict, dev_label_dict, dev_onehot_dict
 
     #test
-    # print(len(train_embed_dict))
-    # print(len(train_label_dict))
-    # print(len(dev_embed_dict))
-    # print(len(dev_label_dict))
-    # print(aaa)
+    #print(len(train_embed_dict))
+    #print(len(train_label_dict))
+    #print(len(dev_embed_dict))
+    #print(len(dev_label_dict))
 
     return train_dicts, dev_dicts
 
@@ -130,10 +129,20 @@ def setup_data_CNN(data_dicts, input_dims, batch_size):
     for file, feature_list in embed_dict.items():
         feature_list = feature_list[start_frame:]
         for i, slice in enumerate(feature_list):
-            # discard slices not of (80 x 204)
+            #print(i)
+            #if (i%1000==0):
+            #    print(slice.shape)
             if slice.shape == (fbins, time_steps):
                 list_X.append(slice)
                 list_y.append(labels_range[label_dict[file]])
+
+    #print("Input shapes:")
+    #print(len(list_X))
+    #print(list_X[0].shape)
+    #print("Output:")
+    #print(len(list_y))
+    #print(list_y[0])
+    #print(aa)
 
     X = np.stack(list_X, axis = 2)
     y = np.stack(list_y, axis = 0)
@@ -141,8 +150,9 @@ def setup_data_CNN(data_dicts, input_dims, batch_size):
     # Conver to torch tensors, Batch the data for training and dev set
     X = torch.from_numpy(X).permute(2,0,1).unsqueeze(1).double()
     y = torch.from_numpy(y).long()
-    # print(X.size())
-    # print(y.size())
+    print('Torch tensor shapes:')
+    print(X.size())
+    print(y.size())
 
     dataset = data_utils.TensorDataset(X, y)
     loader = data_utils.DataLoader(dataset, batch_size = batch_size, shuffle=True)

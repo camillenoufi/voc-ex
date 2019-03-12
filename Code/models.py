@@ -52,9 +52,9 @@ class VanillaCNN(nn.Module):
         self.num_classes = num_classes # 10
         self.mp_kernel_size = 2
         self.dropout_rate = dropout_rate
-        self.fc1_input_size = 5346  
-        #num_filters = 128: 38016,   num_filters= 64: 19008   num_filters=18: #5346
-        self.fc1_out_size = 80
+        self.fc1_input_size = 19008  
+        #fc1_input_size is dependent on kernel size and num filters, if those change, so will this number
+        self.fc1_out_size = 160
 
         # CNN / Max Pool 1
         self.conv1 = nn.Conv2d(self.in_channels, self.out_channels_1, self.kernel_size, stride=1, padding=1)
