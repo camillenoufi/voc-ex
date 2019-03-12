@@ -46,13 +46,13 @@ class VanillaCNN(nn.Module):
 
         self.kernel_size = kernel_size # 3
         self.in_channels = in_channels # 1
-        self.out_channels_1 = 18 # random
-        self.out_channels_2 = 18 
-        self.out_channels_3 = 18  # 18/24 
+        self.out_channels_1 = 64 # random
+        self.out_channels_2 = 64 
+        self.out_channels_3 = 64  # 18/24 
         self.num_classes = num_classes # 10
         self.mp_kernel_size = 2
         self.dropout_rate = dropout_rate
-        self.fc1_input_size = 5346 #  5382 #3588 #4784 #4536 #5382
+        self.fc1_input_size = 19008 #5346
         self.fc1_out_size = 80
         
         # CNN / Max Pool 1
