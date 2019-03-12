@@ -17,9 +17,9 @@ dev_dir = 'dev';
 test_dir = 'test';
 
 %% Setup Specific VAD call
-in_path = fullfile(audio_path,test_dir);
+in_path = fullfile(audio_path,train_dir);
 out_dir = 'VAD_top10_all';
-metadata_filepath = fullfile(metadata_dirpath,test_metadata);
+metadata_filepath = fullfile(metadata_dirpath,trainAll_metadata);
 
 performVAD(metadata_filepath,in_path,out_dir);
 
@@ -41,7 +41,7 @@ if ~exist(out_path,'dir')
     mkdir(out_path);
 end
 
-for i=1:length(metadata)
+for i=6001:length(metadata)
     fname = metadata(i).name;
     [y,fs] = audioread(fullfile(in_path,fname));
     [vs,~] = v_vadsohn(y,fs);
