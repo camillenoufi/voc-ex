@@ -6,19 +6,21 @@ from load_data import DataLoader
 import torch.utils.data as data_utils
 import torch
 from sklearn.metrics import accuracy_score
+np.set_printoptions(threshold=np.nan)
 
 def main():
     
     train_dicts, dev_dicts = load_train_and_dev()
-    runKNN(train_dicts, dev_dicts) 
+    #runKNN(train_dicts, dev_dicts) 
     #runKNN_withConcat(train_dicts, dev_dicts)
-    #runVanillaCNN(train_dicts, dev_dicts)
+    runVanillaCNN(train_dicts, dev_dicts)
 
 
 
 def load_train_and_dev():
 
-    data_dir = '/Users/sarahciresi/Desktop/CS224final/localTrainingData'
+    #data_dir = '/Users/sarahciresi/Desktop/CS224final/localTrainingData'
+    data_dir = '/Users/sarahciresi/Desktop/CS224final/VocEx-local'
     train_partition = 'local_balanced/'
     dl_train = DataLoader(data_dir, train_partition)
     filepath_list_train = dl_train.load_filelist()
@@ -85,18 +87,18 @@ def runKNN_withConcat(train_dicts, dev_dicts):
 
     idx = 0                                                                                                                                                                                 
     min_c_length = 10000   
-    # Put together X_train                                                                                                                                                                    
-    # Concatenate all feature slices of one file into one input      
-    for file, feature_list in train_embed_dict.items():                                                                                                                                       
-        num_slices = len(feature_list)                                                                                                                                                         
-        concat_features = None                                                                                                              
-        first = True                                                                                                                                                                           
-        for slice in feature_list:                                                                                                                                                                 
-            if first == True:                                                                                                                                                                    
-                concat_features = slice                                                                                                                                                     
-                first = False                                                                                                                                                                   
-            else:                                                                                                                                                                              
-                concat_features = np.concatenate((concat_features, slice), axis=1)                                                                                                                  
+    # Put together X_train by concatenating all feature slices of one file into one input      
+    for file, feature_list in train_embed_dict.items(): 
+        num_slices = len(feature_list)             
+        concat_features = None                
+        first = True                       
+        for slice in feature_list:       
+            if first == True:         
+                concat_features = slice 
+                first = False       
+            else:           
+                concat_features = np.concatenate((concat_features, slice), axis=1)                                                         
+    
         concat_features = concat_features[:,:8053]   
         X_train[idx] = concat_features
         y_train[idx] = train_labels_range[train_label_dict[file]]                                                                                                                              
@@ -158,8 +160,8 @@ def runKNN(train_dicts, dev_dicts):
     # Put together X_train
     num_samples = len(train_embed_dict)
     num_slices = 48
-    X_train = np.zeros((num_samples*num_slices, 13, 172)) # try with just 13 fq bins?  #96 ,172)) 
-    y_train = np.zeros((num_samples*num_slices)) #, 96, 172))                                                           
+    X_train = np.zeros((num_samples*num_slices, 96, 172)) # try with just 13 fq bins?  #96 ,172)) 
+    y_train = np.zeros((num_samples*num_slices)) #, 96, 172))                           
     
     print("Loading X_train")
         
@@ -169,14 +171,14 @@ def runKNN(train_dicts, dev_dicts):
         for slice in feature_list:
             # discard slices not of (96 x 172)                                                                           
             if slice.shape == (96, 172):
-                X_train[sample_no] = slice[:13,:]
+                X_train[sample_no] = slice #[:13,:]
                 y_train[sample_no] = train_labels_range[train_label_dict[file]]
                 sample_no += 1
 
     print("Loading X_dev")
 
     num_dev_samples = len(dev_embed_dict)
-    X_dev  = np.zeros((num_dev_samples*num_slices, 13, 172)) # 96, 172))
+    X_dev  = np.zeros((num_dev_samples*num_slices, 96, 172)) # 96, 172))
     y_dev = np.zeros((num_dev_samples*num_slices))
     
     sample_no = 0
@@ -184,13 +186,13 @@ def runKNN(train_dicts, dev_dicts):
         num_slices = len(feature_list)
         for slice in feature_list:
             if slice.shape == (96, 172):
-                X_dev[sample_no] = slice[:13,:]
+                X_dev[sample_no] = slice  #[:13,:]
                 y_dev[sample_no] = dev_labels_range[dev_label_dict[file]]
                 sample_no += 1
 
 
-    X_train = X_train.reshape(num_samples*num_slices, 13*172) # 96 * 172)
-    X_dev = X_dev.reshape(num_dev_samples*num_slices, 13*172) # 96 * 172)
+    X_train = X_train.reshape(num_samples*num_slices, 96*172) # 96 * 172)
+    X_dev = X_dev.reshape(num_dev_samples*num_slices, 96*172) # 96 * 172)
 
     num_classes = len(train_onehot_dict)
     weighting = "uniform"
@@ -215,6 +217,10 @@ def setup_data_CNN(train_dicts, dev_dicts):
     dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
     train_labels_range, dev_labels_range = {}, {}
     num_classes = len(train_onehot_dict)
+    num_samples =  len(train_embed_dict)
+    num_total_slices = 6238   # all slices across all audio files
+    fbins = 80
+    time_steps = 204
 
     for k,v in train_onehot_dict.items():
         train_labels_range[k] = np.where(v==1)[0][0]
@@ -223,53 +229,66 @@ def setup_data_CNN(train_dicts, dev_dicts):
         dev_labels_range[k] = np.where(v==1)[0][0]
 
     # Put together X_train   
-    num_samples = len(train_embed_dict)
-    num_slices = 48  
-
-    X_train = np.zeros((num_samples*num_slices, 96, 172))
-    y_train = np.zeros((num_samples*num_slices)) #, 96, 172))
-
+    X_train = np.empty((fbins, time_steps))
+    y_train = np.empty(1)
+    #X_train = np.zeros((num_samples*num_slices, 96, 172))
+    ##X_train = np.zeros((num_total_slices, fbins, time_steps)) 
+    ##y_train = np.zeros((num_total_slices))
+    #y_train = np.zeros((num_samples*num_slices)) #, 96, 172))
+    
     print("Loading X_train")
-
+    train_list_X = []
+    train_list_y = []
     sample_no = 0
+    sliced_class_label = 0 # keys should range from 0 to 479 mapping to 48 slices of 10 og classes
     for file, feature_list in train_embed_dict.items():
-        num_slices = len(feature_list)
-        for slice in feature_list:
-            # discard slices not of (96 x 172) 
-            if slice.shape == (96, 172):
-                X_train[sample_no] = slice
-                y_train[sample_no] = train_labels_range[train_label_dict[file]] 
+        feature_list = feature_list[4:]
+        #num_slices_2 = len(feature_list)
+        for i, slice in enumerate(feature_list):
+            # discard slices not of (80 x    ) - this discards 1 slice in every file
+            if slice.shape == (fbins, time_steps):
+                train_list_X.append(slice)
+                train_list_y.append(train_labels_range[train_label_dict[file]])
+                #X_train[sample_no] = slice
+                #y_train[sample_no] = train_labels_range[train_label_dict[file]] # 0-9
                 sample_no += 1
-                
+    X_train = np.stack(train_list_X, axis = 2)          
+    y_train = np.stack(train_list_y, axis = 0)
+    #print("X shape: {} \n y shape: {} \n".format(X_train.shape, y_train.shape))
+
     # Do the same for X_dev
     print("Loading X_dev")
-
-    num_dev_samples = len(dev_embed_dict)
-    X_dev  = np.zeros((num_dev_samples*num_slices, 96, 172))
-    y_dev = np.zeros((num_dev_samples*num_slices)) 
+           
+    num_dev_samples = len(dev_embed_dict)-1  ###
+    #X_dev  = np.zeros((num_dev_samples*num_slices, 96, 172))
+    #y_dev = np.zeros((num_dev_samples*num_slices)) 
     
-    sample_no = 0
-    for file, feature_list in dev_embed_dict.items():
-        num_slices = len(feature_list)
-        for slice in feature_list:
-            if slice.shape == (96, 172):
-                X_dev[sample_no] = slice
-                y_dev[sample_no] = dev_labels_range[dev_label_dict[file]]
-                sample_no += 1
 
-    kernel_size = 3
-    in_channels = 1
-    num_filters = 18 # unused
-    dropout = 0.3
-    learning_rate = 0.001 
-    num_epochs = 10
+    sample_no = 0
+    dev_list_X = []
+    dev_list_y = []
+    for file, feature_list in dev_embed_dict.items():
+        feature_list = feature_list[4:]
+        #num_slices_2 = len(feature_list)
+        for i, slice in enumerate(feature_list):
+            if slice.shape == (fbins, time_steps):
+                dev_list_X.append(slice)
+                dev_list_y.append(dev_labels_range[dev_label_dict[file]])
+                #X_dev[sample_no] = slice
+                #y_dev[sample_no] = dev_labels_range[dev_label_dict[file]]                
+        
+                sample_no += 1
+    X_dev = np.stack(dev_list_X, axis=2)
+    y_dev = np.stack(dev_list_y, axis=0)
+
 
     # Batch the data for training and dev set
-    X_train = torch.from_numpy(X_train).unsqueeze(1).double()
+    X_train = torch.from_numpy(X_train)
+    X_train = X_train.permute(2,0,1).unsqueeze(1).double()
     y_train = torch.from_numpy(y_train).long()
-    X_dev = torch.from_numpy(X_dev).unsqueeze(1).double()
+
+    X_dev = torch.from_numpy(X_dev).permute(2,0,1).unsqueeze(1).double()
     y_dev = torch.from_numpy(y_dev).long()
-    
 
     train_data = data_utils.TensorDataset(X_train, y_train)
     train_loader = data_utils.DataLoader(train_data, batch_size = 80, shuffle=True)
@@ -287,14 +306,16 @@ def runVanillaCNN(train_dicts, dev_dicts):
     train_labels_range, dev_labels_range = {}, {}
     num_classes = len(train_onehot_dict)
     num_samples = len(train_embed_dict)
-    num_dev_samples = len(dev_embed_dict)
+    num_dev_samples = len(dev_embed_dict)-1 ###
 
     kernel_size = 3
     in_channels = 1
     num_filters = 18 # unused                                                                                        
-    dropout = 0.5
-    learning_rate = 0.001
+    dropout = 0.5    # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
+    learning_rate = 0.0001
     num_epochs = 8
+    
+    #num_classes2 = 470  # jk there are 470 classes b/c we throw the shortest slice out ni every case
 
     train_loader, dev_loader = setup_data_CNN(train_dicts, dev_dicts)
     cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout)
