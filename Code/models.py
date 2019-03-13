@@ -135,7 +135,7 @@ def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs)
             optimizer.zero_grad()
 
             # compute the forward pass
-            outputs = model(inputs)
+            outputs = model(inputs) #to device
 
             # compute the loss and optimizee
             loss_ = loss_fn(outputs, labels)

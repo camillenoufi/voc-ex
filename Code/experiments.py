@@ -140,7 +140,7 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, device):
             #    print(slice.shape)
             if slice.shape == (fbins, time_steps):
                 print(file_no, i)
-                list_X.append(torch.from_numpy(slice).double().to(device))
+                list_X.append(torch.from_numpy(slice).double())
                 list_y.append(labels_range[label_dict[file]])
 
     #print("Input shapes:")
@@ -153,7 +153,7 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, device):
 
     X = torch.stack(list_X, dim = 2)
     X = X.permute(2,0,1).unsqueeze(1)
-    y = torch.from_numpy( np.stack(list_y, axis = 0) ).long().to(device) #np
+    y = torch.from_numpy( np.stack(list_y, axis = 0) ).long() #np
 
     # Conver to torch tensors, Batch the data for training and dev set
     # X = torch.from_numpy(X).permute(2,0,1).unsqueeze(1).double()
@@ -174,7 +174,7 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, device):
 
     dataset = data_utils.TensorDataset(X, y)
     loader = data_utils.DataLoader(dataset, batch_size = batch_size, shuffle=True)
-
+    loader = loader.to(device)
     return loader
 
 
@@ -205,6 +205,7 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
 
     # Initialize and Train Model
     cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
+    #cnn = cnn.to(device)
     train_model(cnn, train_loader, num_samples, learning_rate, num_epochs)
     torch.save(cnn.state_dict(), "trained_cnn_model_params.bin")
 
