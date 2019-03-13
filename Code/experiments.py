@@ -110,7 +110,7 @@ def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
     return train_dicts, dev_dicts
 
 
-def setup_data_CNN(data_dicts, input_dims, batch_size, device):
+def setup_data_CNN(data_dicts, input_dims, batch_size):
     '''
     Function that handles all the extra data set up before training / evaluting the CNN
     '''
@@ -127,54 +127,38 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, device):
     print("...Loading input and labels")
     list_X = []
     list_y = []
-    file_no = 0
+#    file_no = 0
     for file, feature_list in embed_dict.items():
-        file_no+=1
-        if file_no == 1000:
-            print('At file 1000')
-            break
+#        file_no+=1
+#        if file_no == 1000:
+#            print('At file 1000')
+#            break
         feature_list = feature_list[start_frame:]
         for i, slice in enumerate(feature_list):
             #print(i)
             #if (i%1000==0):
             #    print(slice.shape)
             if slice.shape == (fbins, time_steps):
-                print(file_no, i)
-                list_X.append(torch.from_numpy(slice).double())
+#                print(file_no, i)
+                list_X.append(slice)
                 list_y.append(labels_range[label_dict[file]])
 
-    #print("Input shapes:")
-    #print(len(list_X))
-    #print(list_X[0].shape)
-    #print("Output:")
-    #print(len(list_y))
-    #print(list_y[0])
-    #print(aa)
-
-    X = torch.stack(list_X, dim = 2)
-    X = X.permute(2,0,1).unsqueeze(1)
-    y = torch.from_numpy( np.stack(list_y, axis = 0) ).long() #np
+    X = np.stack(list_X, axis = 2)
+    y = np.stack(list_y, axis = 0)
 
     # Conver to torch tensors, Batch the data for training and dev set
-    # X = torch.from_numpy(X).permute(2,0,1).unsqueeze(1).double()
-    # X = X.to(device)
-    # y = torch.from_numpy(y).long()
-    # y = y.to(device)
+    X = torch.from_numpy(X).permute(2,0,1).unsqueeze(1).double()
+    y = torch.from_numpy(y).long()
 
 
 
     print('Input tensor:')
-    print(X.type())
     print(X.size())
-    print(X.device)
     print('Label tensor:')
-    print(y.type())
     print(y.size())
-    print(y.device)
 
     dataset = data_utils.TensorDataset(X, y)
     loader = data_utils.DataLoader(dataset, batch_size = batch_size, shuffle=True)
-    loader = loader.to(device)
     return loader
 
 
@@ -188,29 +172,29 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
     num_dev_samples = len(dev_embed_dict) ###
 
     # Hyper-parameters
-    batch_size = 64;
+    batch_size = 128;
     kernel_size = 3
     in_channels = 1
-    num_filters = 16
-    dropout_rate = 0.3
+    num_filters = 64
+    dropout_rate = 0.6
     learning_rate = 0.001
-    num_epochs = 6
+    num_epochs = 35
     # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
 
     # Format Data for Train and Eval
     print("Setting up TRAINING data for model...")
-    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size, device)
+    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
     print("Setting up VALIDATION data for model...")
-    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size, device)
+    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size)
 
     # Initialize and Train Model
     cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
     #cnn = cnn.to(device)
-    train_model(cnn, train_loader, num_samples, learning_rate, num_epochs)
+    train_model(cnn, train_loader, num_samples, learning_rate, num_epochs, device)
     torch.save(cnn.state_dict(), "trained_cnn_model_params.bin")
 
     # Evaluate Model
-    eval_model(cnn, dev_loader)
+    eval_model(cnn, dev_loader, device)
 
 
 
@@ -233,21 +217,21 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device):
     learning_rate = 0.001
     sequence_length = input_dims[1] #timesteps per mel "image"
     #num_classes = 10
-    num_epochs = 8
+    num_epochs = 40
 
     # Format Data for Train and Eval
     print("Setting up TRAINING data for model...")
-    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size, device)
+    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
     print("Setting up VALIDATION data for model...")
-    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size, device)
+    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size)
 
     # Initialize and Train Model
-    crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, dropout_rate)
-    train_model(crnn, train_loader, num_samples, learning_rate, num_epochs)
+    crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
+    train_model(crnn, train_loader, num_samples, learning_rate, num_epochs, device)
     torch.save(crnn.state_dict(), "trained_crnn_model_params.bin")
 
     # Evaluate Model
-    eval_model(crnn, dev_loader)
+    eval_model(crnn, dev_loader, device)
 
 
 

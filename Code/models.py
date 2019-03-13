@@ -52,9 +52,9 @@ class VanillaCNN(nn.Module):
         self.num_classes = num_classes # 10
         self.mp_kernel_size = 2
         self.dropout_rate = dropout_rate
-        self.fc1_input_size = 4752
+        self.fc1_input_size = 9504
         #fc1_input_size is dependent on kernel size and num filters, if those change, so will this number
-        self.fc1_out_size = 160
+        self.fc1_out_size = 594
 
         # CNN / Max Pool 1
         self.conv1 = nn.Conv2d(self.in_channels, self.out_channels_1, self.kernel_size, stride=1, padding=1)
@@ -109,12 +109,12 @@ class VanillaCNN(nn.Module):
 
 
 
-def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs):
+def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs, device):
     '''
     Trains a given model
     '''
 
-    model.train()  # set in train mode
+    model = model.to(device).train()  # set in train mode
     loss_fn = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -130,6 +130,8 @@ def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs)
         for i, batch in enumerate(train_data_loader):
 
             inputs, labels = batch
+            inputs = inputs.to(device)
+            labels = labels.to(device)
 
             #Set the parameter gradients to zero
             optimizer.zero_grad()
@@ -160,15 +162,17 @@ def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs)
 
 
 
-def eval_model(model, dev_data_loader):
+def eval_model(model, dev_data_loader, device):
 
-    model.eval()
+    model = model.to(device).eval()
     loss_fn = nn.CrossEntropyLoss()
     correct = 0
     total = 0
     with torch.no_grad():
         running_eval_loss = 0
         for inputs, labels in dev_data_loader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
             outputs = model(inputs)
             loss_ = loss_fn(outputs, labels)
             running_eval_loss += loss_

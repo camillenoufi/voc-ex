@@ -11,7 +11,7 @@ from resnext import ResNext
 
 
 class CRNN (nn.Module):
-    def __init__(self, input_size, embed_size, hidden_size, num_layers, num_classes, dropout_rate=0.3):
+    def __init__(self, input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate=0.3):
 
         super(CRNN, self).__init__()
         self.in_channels = input_size;
@@ -33,6 +33,8 @@ class CRNN (nn.Module):
         #self.decoder = nn.LSTMCell(embed_size+hidden_size, hidden_size, bias=True).double()
         self.decoder = nn.Linear(hidden_size*2, num_classes).double()  # 2 for bidirection
         self.dropout = nn.Dropout(dropout_rate).double()
+
+        self.device = device
 
 
     def forward(self, input):
@@ -57,8 +59,8 @@ class CRNN (nn.Module):
 
         input = x_conv
 
-        h0 = torch.zeros(self.num_layers*2, input.size(0), self.hidden_size).to('cpu').double() # 2 for bidirection 
-        c0 = torch.zeros(self.num_layers*2, input.size(0), self.hidden_size).to('cpu').double()
+        h0 = torch.zeros(self.num_layers*2, input.size(0), self.hidden_size).to(self.device).double() # 2 for bidirection  
+        c0 = torch.zeros(self.num_layers*2, input.size(0), self.hidden_size).to(self.device).double()
         
         # Forward propagate LSTM
         out, _ = self.encoder(input, (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size*2)
