@@ -52,7 +52,7 @@ class VanillaCNN(nn.Module):
         self.num_classes = num_classes # 10
         self.mp_kernel_size = 2
         self.dropout_rate = dropout_rate
-        self.fc1_input_size = 4752  
+        self.fc1_input_size = 4752
         #fc1_input_size is dependent on kernel size and num filters, if those change, so will this number
         self.fc1_out_size = 160
 
@@ -148,8 +148,10 @@ def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs)
             # track accuracy
             total = labels.size(0)
             _, predicted = torch.max(outputs.data, 1)
+
             correct = (predicted == labels).sum().item()
             acc_list.append(correct / total)
+
 
             if (i + 1) % 10 == 0:
                 print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Accuracy: {:.2f}%'

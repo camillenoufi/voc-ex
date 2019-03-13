@@ -129,9 +129,10 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, device):
     list_y = []
     file_no = 0
     for file, feature_list in embed_dict.items():
-        #file_no+=1
-        #if file_no == 1000:
-            #break
+        file_no+=1
+        if file_no == 1000:
+            print('At file 1000')
+            break
         feature_list = feature_list[start_frame:]
         for i, slice in enumerate(feature_list):
             #print(i)
@@ -139,7 +140,7 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, device):
             #    print(slice.shape)
             if slice.shape == (fbins, time_steps):
                 print(file_no, i)
-                list_X.append(torch.from_numpy(slice).double()) #.to(device))
+                list_X.append(torch.from_numpy(slice).double().to(device))
                 list_y.append(labels_range[label_dict[file]])
 
     #print("Input shapes:")
@@ -152,7 +153,7 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, device):
 
     X = torch.stack(list_X, dim = 2)
     X = X.permute(2,0,1).unsqueeze(1)
-    y = torch.from_numpy( np.stack(list_y, axis = 0) ).long()  #.to(device) #np
+    y = torch.from_numpy( np.stack(list_y, axis = 0) ).long().to(device) #np
 
     # Conver to torch tensors, Batch the data for training and dev set
     # X = torch.from_numpy(X).permute(2,0,1).unsqueeze(1).double()
