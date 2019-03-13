@@ -131,17 +131,11 @@ def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs)
 
             inputs, labels = batch
 
-            # bin_labels(labels) # bin labels for all slice labels of same country
-
             #Set the parameter gradients to zero
             optimizer.zero_grad()
 
             # compute the forward pass
             outputs = model(inputs)
-
-            #print("Outputs: {}".format(outputs))
-            #print("\n")
-            #print("true labels: {} ".format(labels))
 
             # compute the loss and optimizee
             loss_ = loss_fn(outputs, labels)

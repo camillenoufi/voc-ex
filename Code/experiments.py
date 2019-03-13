@@ -127,15 +127,19 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, device):
     print("...Loading input and labels")
     list_X = []
     list_y = []
-
+    file_no = 0
     for file, feature_list in embed_dict.items():
+        #file_no+=1
+        #if file_no == 1000:
+            #break
         feature_list = feature_list[start_frame:]
         for i, slice in enumerate(feature_list):
             #print(i)
             #if (i%1000==0):
             #    print(slice.shape)
             if slice.shape == (fbins, time_steps):
-                list_X.append(torch.from_numpy(slice).double().to(device))
+                print(file_no, i)
+                list_X.append(torch.from_numpy(slice).double()) #.to(device))
                 list_y.append(labels_range[label_dict[file]])
 
     #print("Input shapes:")
@@ -148,7 +152,7 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, device):
 
     X = torch.stack(list_X, dim = 2)
     X = X.permute(2,0,1).unsqueeze(1)
-    y = torch.from_numpy( np.stack(list_y, axis = 0) ).long().to(device) #np
+    y = torch.from_numpy( np.stack(list_y, axis = 0) ).long()  #.to(device) #np
 
     # Conver to torch tensors, Batch the data for training and dev set
     # X = torch.from_numpy(X).permute(2,0,1).unsqueeze(1).double()
@@ -183,13 +187,13 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
     num_dev_samples = len(dev_embed_dict) ###
 
     # Hyper-parameters
-    batch_size = 128;
+    batch_size = 64;
     kernel_size = 3
     in_channels = 1
     num_filters = 16
     dropout_rate = 0.3
     learning_rate = 0.001
-    num_epochs = 8
+    num_epochs = 6
     # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
 
     # Format Data for Train and Eval
@@ -218,12 +222,12 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device):
 
 
     # Hyper parameters
-    batch_size = 128
+    batch_size = 64
     dropout_rate = 0.3
     embed_size = 128
     hidden_size = 128
     num_layers = 2
-    input_size = 42
+    input_size = 50
     learning_rate = 0.001
     sequence_length = input_dims[1] #timesteps per mel "image"
     #num_classes = 10
