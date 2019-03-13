@@ -135,7 +135,7 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, device):
             #if (i%1000==0):
             #    print(slice.shape)
             if slice.shape == (fbins, time_steps):
-                list_X.append(slice)
+                list_X.append(torch.from_numpy(slice).double().to(device))
                 list_y.append(labels_range[label_dict[file]])
 
     #print("Input shapes:")
@@ -146,14 +146,18 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, device):
     #print(list_y[0])
     #print(aa)
 
-    X = np.stack(list_X, axis = 2)
-    y = np.stack(list_y, axis = 0)
+    X = torch.stack(list_X, dim = 2)
+    X = X.permute(2,0,1).unsqueeze(1)
+    y = torch.from_numpy( np.stack(list_y, axis = 0) ).long().to(device) #np
 
     # Conver to torch tensors, Batch the data for training and dev set
-    X = torch.from_numpy(X).permute(2,0,1).unsqueeze(1).double()
-    X = X.to(device)
-    y = torch.from_numpy(y).long()
-    y = y.to(device)
+    # X = torch.from_numpy(X).permute(2,0,1).unsqueeze(1).double()
+    # X = X.to(device)
+    # y = torch.from_numpy(y).long()
+    # y = y.to(device)
+
+
+
     print('Input tensor:')
     print(X.type())
     print(X.size())
