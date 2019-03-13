@@ -175,7 +175,7 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
     batch_size = 128;
     kernel_size = 3
     in_channels = 1
-    num_filters = 64
+    num_filters = 32
     dropout_rate = 0.6
     learning_rate = 0.001
     num_epochs = 35
