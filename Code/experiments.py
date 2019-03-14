@@ -175,10 +175,10 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
     batch_size = 128;
     kernel_size = 3
     in_channels = 1
-    num_filters = 32
-    dropout_rate = 0.6
+    num_filters = 64
+    dropout_rate = 0.3
     learning_rate = 0.001
-    num_epochs = 35
+    num_epochs = 40
     # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
 
     # Format Data for Train and Eval
@@ -210,14 +210,14 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device):
     # Hyper parameters
     batch_size = 64
     dropout_rate = 0.3
-    embed_size = 128
-    hidden_size = 128
+    embed_size = 64
+    hidden_size = 64
     num_layers = 2
-    input_size = 50
+    input_size = 51
     learning_rate = 0.001
     sequence_length = input_dims[1] #timesteps per mel "image"
     #num_classes = 10
-    num_epochs = 40
+    num_epochs = 100
 
     # Format Data for Train and Eval
     print("Setting up TRAINING data for model...")
