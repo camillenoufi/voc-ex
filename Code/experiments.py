@@ -214,7 +214,7 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device):
     hidden_size = 64
     num_layers = 2
     input_size = 51
-    learning_rate = 0.001
+    learning_rate = 1
     sequence_length = input_dims[1] #timesteps per mel "image"
     #num_classes = 10
     num_epochs = 100

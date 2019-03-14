@@ -6,6 +6,7 @@ import torch.optim as optim
 import torch.nn.utils
 import torch.nn.functional as F
 from sklearn import neighbors, datasets
+from sklearn import f1_score, precision_score, recall_score
 
 class BaselineModel:
     '''
@@ -72,7 +73,7 @@ class VanillaCNN(nn.Module):
         self.pool3 = nn.MaxPool2d(self.mp_kernel_size, stride=2, padding=1)
 
         self.drop_out = nn.Dropout()
-        #self.fc1 = nn.Linear(self.fc1_input_size, self.num_classes, bias = True)
+
         self.fc1 = nn.Linear(self.fc1_input_size, self.fc1_out_size, bias = True)
         self.fc2 = nn.Linear(self.fc1_out_size , self.num_classes, bias = True)  # fully connected to 10 output channels for 10 classes
 
@@ -87,7 +88,6 @@ class VanillaCNN(nn.Module):
         batch_size, in_channels, height, width  = x_input.shape
 
         x_conv1 = self.conv1(x_input.float())
-
         x_maxpool1 = self.pool1(F.relu(x_conv1))
 
         x_conv2 = self.conv2(x_maxpool1)
@@ -100,7 +100,6 @@ class VanillaCNN(nn.Module):
         x_out = x_maxpool3.view(batch_size, -1)
         x_out = self.drop_out(x_out)
 
-        #x_out = self.fc1(x_out) # one fc vs 2 fc
         x_out = F.relu(self.fc1(x_out))
         x_out = self.fc2(x_out)
 
@@ -168,6 +167,14 @@ def eval_model(model, dev_data_loader, device):
     loss_fn = nn.CrossEntropyLoss()
     correct = 0
     total = 0
+    ##
+    f1_micro = 0
+    f1_macro = 0
+    f1_weighted = 0
+    precision = 0
+    recall = 0
+    num_batches = 0
+                                
     with torch.no_grad():
         running_eval_loss = 0
         for inputs, labels in dev_data_loader:
@@ -179,9 +186,21 @@ def eval_model(model, dev_data_loader, device):
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+            
+            f1_micro += f1_score(labels, predicted, average='micro')
+            f1_macro += f1_score(labels, predicted, average='macro')
+            f1_weighted += f1_score(labels, predicted, average='weighted')
+            precision += precision_score(labels, predicted, average='weighted')
+            recall += recall_score(labels, predicted, average='weighted')
+            num_batches += 1
 
         print('Test Accuracy of the model on the dev inputs: {} %'.format((correct / total) * 100))
-
+        print('Average f1, precision, and recall metrics over {} batches:'.format(num_batches))
+        print('F1 (micro):     {}'.format(f1_micro/num_batches))
+        print('F1 (micro):     {}'.format(f1_macro/num_batches))
+        print('F1 (weighted):  {}'.format(f1_weighted/num_batches))
+        print('Precision: {}'.format(precision/num_batches))
+        print('Recall:    {}'.format(recall/num_batches))
 
 
 
@@ -202,7 +221,7 @@ class simpleKNN(BaselineModel):
 
         clf = neighbors.KNeighborsClassifier(self.num_classes, self.weighting)
         clf.fit(X_train, y_train)
-
+        
         self.clf = clf
         self.trained = True
 
