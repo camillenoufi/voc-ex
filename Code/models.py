@@ -205,6 +205,9 @@ def eval_model(model, dev_data_loader, device):
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+
+            labels = labels.cpu() 
+            predicted = predicted.cpu()
             
             f1_micro += f1_score(labels, predicted, average='micro')
             f1_macro += f1_score(labels, predicted, average='macro')
