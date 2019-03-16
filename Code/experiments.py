@@ -219,7 +219,7 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device, nolstm = False):
     num_layers = 2
     input_size = 51 # input size for the LSTM
     learning_rate = 0.001
-    num_epochs = 10
+    num_epochs = 1
 
     # Format Data for Train and Eval
     print("Setting up TRAINING data for model...")
@@ -233,7 +233,7 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device, nolstm = False):
     else:
         crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
     
-    #train_model(crnn, train_loader, num_samples, learning_rate, num_epochs, device)
+    train_model(crnn, train_loader, num_samples, learning_rate, num_epochs, device)
     torch.save(crnn.state_dict(), "trained_crnn_model_params.bin")
 
     # Evaluate Model

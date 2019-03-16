@@ -6,7 +6,7 @@ import torch.optim as optim
 import torch.nn.utils
 import torch.nn.functional as F
 from sklearn import neighbors, datasets
-from sklearn import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 class BaselineModel:
     '''
