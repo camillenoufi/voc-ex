@@ -115,7 +115,7 @@ class CRNNNoLSTM(nn.Module):
         x_conv = self.resnext(x_conv)
         #print("resnext output", x_conv.size())
         x_conv = x_conv.squeeze(1)
-        print("resnext output", x_conv.size())
+        #print("resnext output", x_conv.size())
 
         
         # reshape (flatten) to be batch size * all other dims
@@ -126,7 +126,7 @@ class CRNNNoLSTM(nn.Module):
 
         out = F.relu(self.fc1(out))
         out = self.fc2(out)
-        print("The fc2", out.size())
+        #print("The fc2", out.size())
 
         return out
 

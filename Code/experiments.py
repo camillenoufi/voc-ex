@@ -1,12 +1,16 @@
 from argparse import ArgumentParser
 import random
 import numpy as np
-from models import simpleKNN, VanillaCNN, train_model, eval_model
+from models import VanillaCNN, train_model, eval_model
 from load_data import DataLoader
 from crnn import CRNN, CRNNNoLSTM
+from knn import simpleKNN
 import torch.utils.data as data_utils
 import torch
+from torch.utils.data.sampler import SubsetRandomSampler
+
 from sklearn.metrics import accuracy_score
+
 np.set_printoptions(threshold=np.nan)
 
 def main():
@@ -114,7 +118,7 @@ def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
     return train_dicts, dev_dicts
 
 
-def setup_data_CNN(data_dicts, input_dims, batch_size):
+def setup_data_CNN(data_dicts, input_dims, batch_size, train=True):
     '''
     Function that handles all the extra data set up before training / evaluting the CNN
     '''
@@ -161,9 +165,34 @@ def setup_data_CNN(data_dicts, input_dims, batch_size):
     print('Label tensor:')
     print(y.size())
 
-    dataset = data_utils.TensorDataset(X, y)
-    loader = data_utils.DataLoader(dataset, batch_size = batch_size, shuffle=True)
-    return loader
+    if train:
+        dataset = data_utils.TensorDataset(X, y)
+
+        valid_size = 0.2 # Use 20% for validation and early stopping.
+        num_train =  len(X)
+        split = int(np.floor(valid_size * num_train))
+        indices = list(range(num_train))
+        np.random.shuffle(indices)
+        train_idx, valid_idx = indices[split:], indices[:split]
+
+
+        train_sampler = SubsetRandomSampler(train_idx)
+        valid_sampler = SubsetRandomSampler(valid_idx)
+
+        train_loader = data_utils.DataLoader(dataset, 
+                                            batch_size = batch_size, 
+                                            sampler=train_sampler,
+                                            num_workers=0)
+        valid_loader = data_utils.DataLoader(dataset, 
+                                            batch_size = batch_size, 
+                                            sampler=valid_sampler,
+                                            num_workers=0)
+        return (train_loader, valid_loader)
+
+    else:
+        dataset = data_utils.TensorDataset(X, y)
+        loader = data_utils.DataLoader(dataset, batch_size = batch_size, shuffle=True)
+        return loader
 
 
 def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
@@ -182,19 +211,19 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
     num_filters = 64
     dropout_rate = 0.3
     learning_rate = 0.001
-    num_epochs = 40
+    num_epochs = 10
     # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
 
     # Format Data for Train and Eval
     print("Setting up TRAINING data for model...")
-    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
+    train_loader, valid_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
     print("Setting up VALIDATION data for model...")
-    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size)
+    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size, False)
 
     # Initialize and Train Model
     cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
     #cnn = cnn.to(device)
-    train_model(cnn, train_loader, num_samples, learning_rate, num_epochs, device)
+    train_model(cnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
     torch.save(cnn.state_dict(), "trained_cnn_model_params.bin")
 
     # Evaluate Model
@@ -219,13 +248,18 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device, nolstm = False):
     num_layers = 2
     input_size = 51 # input size for the LSTM
     learning_rate = 0.001
-    num_epochs = 1
+    num_epochs = 2
 
     # Format Data for Train and Eval
     print("Setting up TRAINING data for model...")
-    train_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
+    train_loader, valid_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
+
+    print("Train dataset...", len(train_loader.dataset))
+    print("Valid dataset...", len(valid_loader.dataset))
+
+
     print("Setting up VALIDATION data for model...")
-    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size)
+    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size, False)
 
     # Initialize and Train Model
     if (nolstm):
@@ -233,7 +267,7 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device, nolstm = False):
     else:
         crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
     
-    train_model(crnn, train_loader, num_samples, learning_rate, num_epochs, device)
+    train_model(crnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
     torch.save(crnn.state_dict(), "trained_crnn_model_params.bin")
 
     # Evaluate Model

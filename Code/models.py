@@ -8,33 +8,7 @@ import torch.nn.functional as F
 from sklearn import neighbors, datasets
 from sklearn.metrics import f1_score, precision_score, recall_score
 
-class BaselineModel:
-    '''
-    Abstract class to show what functions
-    each model we implement needs to support
-    '''
-    def __init__(self):
-        '''
-        Sets flags for the model to aid in debugging
-        '''
-
-    def fit(self, *args):
-        '''
-        Trains model parameters and saves them as attributes of this class.
-        Variable numbers of parameters; depends on the class
-        '''
-        raise NotImplementedError
-
-
-    def predict(self, *args):
-        '''
-        Uses trained model parameters to predict values for unseen data.
-        Variable numbers of parameters; depends on the class.
-        Raises ValueError if the model has not yet been trained.
-        '''
-        if not self.trained:
-             raise ValueError("This model has not been trained yet")
-        raise NotImplementedError
+from earlystop import EarlyStopping
 
 
 class VanillaCNN(nn.Module):
@@ -108,22 +82,34 @@ class VanillaCNN(nn.Module):
 
 
 
-def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs, device):
+def train_model(model, train_data_loader, valid_loader, batch_size, learning_rate, num_epochs, device):
     '''
     Trains a given model
     '''
 
-    model = model.to(device).train()  # set in train mode
+    #model = model.to(device).train()  # set in train mode
     loss_fn = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    early_stopping = EarlyStopping(patience=3, verbose=True)
 
     total_steps = len(train_data_loader)
-    loss_list = []
+    train_losses = []
     acc_list = []
+    valid_losses = []
+    avg_train_losses = []
+    avg_valid_losses = []
+
+    
 
     print("Starting Training")
 
     for epoch in range(0,num_epochs):
+        
+        ###################
+        # train the model #
+        ###################
+
+        model = model.to(device).train()  # set in train mode
         running_loss = 0.0
         print("Starting Training ", epoch)
         for i, batch in enumerate(train_data_loader):
@@ -140,7 +126,7 @@ def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs,
 
             # compute the loss and optimizee
             loss_ = loss_fn(outputs, labels)
-            loss_list.append(loss_.item())
+            train_losses.append(loss_.item())
             loss_.backward()
             optimizer.step()
 
@@ -160,10 +146,43 @@ def train_model(model, train_data_loader, batch_size, learning_rate, num_epochs,
                               (correct / total) * 100))
 
 
+        ######################    
+        # validate the model #
+        ######################
+
+        model = model.to(device).eval()
+        for data, target in valid_loader:
+            # forward pass: compute predicted outputs by passing inputs to the model
+            output = model(data)
+            # calculate the loss
+            loss = loss_fn(output, target)
+            # record validation loss
+            valid_losses.append(loss.item())
+
+
+
+        # print training/validation statistics 
+        # calculate average loss over an epoch
+        train_loss = np.average(train_losses)
+        valid_loss = np.average(valid_losses)
+        avg_train_losses.append(train_loss)
+        avg_valid_losses.append(valid_loss)
+
+        print("Valid loss:", valid_loss)
+        print("checking for earlystop criteria")
+        early_stopping(valid_loss, model)
+
+        if early_stopping.early_stop:
+            break
+
+    model.load_state_dict(torch.load('checkpoint.pt'))
+    return  model
+
 
 def eval_model(model, dev_data_loader, device):
 
     model = model.to(device).eval()
+
     loss_fn = nn.CrossEntropyLoss()
     correct = 0
     total = 0
@@ -201,39 +220,3 @@ def eval_model(model, dev_data_loader, device):
         print('F1 (weighted):  {}'.format(f1_weighted/num_batches))
         print('Precision: {}'.format(precision/num_batches))
         print('Recall:    {}'.format(recall/num_batches))
-
-
-
-class simpleKNN(BaselineModel):
-
-    def __init__(self, num_classes, weighting = "uniform"):
-
-        super(simpleKNN, self).__init__()
-        self.num_classes = num_classes
-        self.weighting = weighting
-
-
-    def fit(self, X_train, y_train):
-        '''
-        Fits a simple knn Model given training matrix X (num_samples * num_features) and
-        class labels y (which is a value in range (0, num_classes-1) )
-        '''
-
-        clf = neighbors.KNeighborsClassifier(self.num_classes, self.weighting)
-        clf.fit(X_train, y_train)
-        
-        self.clf = clf
-        self.trained = True
-
-
-    def predict(self, input):
-
-        ''' Predicts class label for given batch of input ((n_query, n_features)
-        for simple KNN model.
-
-        Returns predicitions which is a value in range (0, num_classes-1)
-        which is of size (n_samples, n_output) or n_samples ?
-        '''
-
-        predictions = self.clf.predict(input)
-        return predictions
