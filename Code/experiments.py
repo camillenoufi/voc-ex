@@ -3,7 +3,7 @@ import random
 import numpy as np
 from models import simpleKNN, VanillaCNN, train_model, eval_model
 from load_data import DataLoader
-from crnn import CRNN
+from crnn import CRNN, CRNNNoLSTM
 import torch.utils.data as data_utils
 import torch
 from sklearn.metrics import accuracy_score
@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--dir", help="location of local data dir", default=".")
     parser.add_argument("--train_dir", help="name of the train partition folder, must be a subfolder of 'dir' ", default="train")
     parser.add_argument("--dev_dir", help="name of the dev partition folder, must be a subfolder of 'dir' ", default="dev")
-    parser.add_argument("--model", help="one of  knn, cnn or crnn ", default="crnn")
+    parser.add_argument("--model", help="one of  knn, cnn, crnn or nolstm ", default="crnn")
     parser.add_argument("--vm_flag", help="0 = local, 1 = Azure VM", default=0)
     args = parser.parse_args()
     dir =  args.dir if args.dir else '/home/group/dataset'  #dataset location in Azure VM
@@ -46,6 +46,10 @@ def main():
     if args.model == 'crnn':
         print("Running CRNN...")
         runCRNN(train_dicts, dev_dicts, input_dims, device)
+
+    if args.model == 'nolstm':
+        print("Running CRNN without LSTM ...")
+        runCRNN(train_dicts, dev_dicts, input_dims, device, True)
 
 
 def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
@@ -198,7 +202,7 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
 
 
 
-def runCRNN(train_dicts, dev_dicts, input_dims, device):
+def runCRNN(train_dicts, dev_dicts, input_dims, device, nolstm = False):
     train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
     dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
     train_labels_range, dev_labels_range = {}, {}
@@ -208,16 +212,14 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device):
 
 
     # Hyper parameters
-    batch_size = 64
+    batch_size = 128
     dropout_rate = 0.3
     embed_size = 64
     hidden_size = 64
     num_layers = 2
-    input_size = 51
-    learning_rate = 1
-    sequence_length = input_dims[1] #timesteps per mel "image"
-    #num_classes = 10
-    num_epochs = 100
+    input_size = 51 # input size for the LSTM
+    learning_rate = 0.001
+    num_epochs = 10
 
     # Format Data for Train and Eval
     print("Setting up TRAINING data for model...")
@@ -226,8 +228,12 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device):
     dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size)
 
     # Initialize and Train Model
-    crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
-    train_model(crnn, train_loader, num_samples, learning_rate, num_epochs, device)
+    if (nolstm):
+        crnn = CRNNNoLSTM(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
+    else:
+        crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
+    
+    #train_model(crnn, train_loader, num_samples, learning_rate, num_epochs, device)
     torch.save(crnn.state_dict(), "trained_crnn_model_params.bin")
 
     # Evaluate Model
