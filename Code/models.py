@@ -152,6 +152,9 @@ def train_model(model, train_data_loader, valid_loader, batch_size, learning_rat
 
         model = model.to(device).eval()
         for data, target in valid_loader:
+            data = data.to(device)
+            target = target.to(device)
+            
             # forward pass: compute predicted outputs by passing inputs to the model
             output = model(data)
             # calculate the loss

@@ -223,7 +223,7 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
     # Initialize and Train Model
     cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
     #cnn = cnn.to(device)
-    train_model(cnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
+    cnn = train_model(cnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
     torch.save(cnn.state_dict(), "trained_cnn_model_params.bin")
 
     # Evaluate Model
@@ -267,7 +267,7 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device, nolstm = False):
     else:
         crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
     
-    train_model(crnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
+    crnn = train_model(crnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
     torch.save(crnn.state_dict(), "trained_crnn_model_params.bin")
 
     # Evaluate Model
