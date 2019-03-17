@@ -195,6 +195,7 @@ def eval_model(model, dev_data_loader, device):
     f1_weighted = 0
     precision = 0
     recall = 0
+    cm = []
     num_batches = 0
                                 
     with torch.no_grad():
@@ -216,7 +217,7 @@ def eval_model(model, dev_data_loader, device):
             f1_macro += f1_score(labels, predicted, average='macro')
             f1_weighted += f1_score(labels, predicted, average='weighted')
             precision += precision_score(labels, predicted, average='weighted')
-            recall += recall_score(labels, predicted, average='weighted')
+            recall += recall_score(labels, predicted, average='weighted') 
             num_batches += 1
 
         print('Test Accuracy of the model on the dev inputs: {} %'.format((correct / total) * 100))
