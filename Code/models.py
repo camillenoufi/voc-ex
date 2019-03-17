@@ -233,7 +233,7 @@ def eval_model(model, dev_data_loader, device, label_set):
         print('Recall:    {}'.format(recall/num_batches))
         print('Confusion Matrix:    {}'.format(cm))
 
-def test_model(model_file, test_data_loader, device, label_set):
+def test_model(model, model_file, test_data_loader, device, label_set):
 
     model = model.load_state_dict(torch.load(model_file))
     model = model.to(device).eval()
