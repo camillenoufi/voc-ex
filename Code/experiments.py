@@ -140,7 +140,7 @@ def load_test(dir,test_dir,vm_flag):
     else:
         test_fname = 'dict_test_feats.pkl'
         test_labels_fname = 'local_test.csv'
-    
+
     label_list_fname = 'label_nums.csv'
 
     embed_dict = dl_test.convert_embed_dict_to_local(dl_test.load_embedding_dict(fname=test_fname))
@@ -228,15 +228,15 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_f
     in_channels = 1
     num_filters = 32
     dropout_rate = 0.3
-
-    # Initialize and Model
-    cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)	
     model_file = "trained_cnn_model_params.bin"
-    
+
     if (test_flag=='1'):
         test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
+        num_classes = len(test_onehot_dict)
         print("Setting up TEST data...")
         test_loader, label_set = setup_data_CNN(test_dicts, input_dims, batch_size = 128, train=False)
+        # Initialize Model
+        cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
         test_model(cnn, model_file, test_loader, device, label_set)
 
     else:
@@ -251,13 +251,14 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_f
         batch_size = 128
         learning_rate = 0.001
         num_epochs = 40
-        
+
         # Format Data for Train and Eval
         print("Setting up TRAINING data for model...")
         train_loader, valid_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
         print("Setting up VALIDATION data for model...")
         dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
-        
+        # Initialize Model
+        cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
         cnn = train_model(cnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
         torch.save(cnn.state_dict(), model_file)
 
@@ -268,22 +269,24 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_f
 
 def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, nolstm = False):
 
+    #Architecture hyperparams
     dropout_rate = 0.3
     embed_size = 32
     hidden_size = 32
     num_layers = 2
-    input_size = 51 # input size for the LSTM    
+    input_size = 51 # input size for the LSTM
     model_file = "trained_crnn_model_params.bin"
-    # Initialize Model
-    if (nolstm):
-        crnn = CRNNNoLSTM(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
-    else:
-        crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
 
     if (test_flag=='1'):
         test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
+        num_classes = len(test_onehot_dict)
         print("Setting up TEST data...")
         test_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size = 128, train=False)
+        # Initialize Model
+        if (nolstm):
+            crnn = CRNNNoLSTM(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
+        else:
+            crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
         test_model(crnn, model_file, test_loader, device, label_set)
 
     else:
@@ -295,7 +298,7 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, n
         num_dev_samples = len(dev_embed_dict)
 
 
-        # Hyper parameters
+        # training Hyper parameters
         batch_size = 128
         learning_rate = 0.001
         num_epochs = 40
@@ -310,7 +313,11 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, n
 
         print("Setting up VALIDATION data for model...")
         dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
-
+        # Initialize Model
+        if (nolstm):
+            crnn = CRNNNoLSTM(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
+        else:
+            crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
         crnn = train_model(crnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
         torch.save(crnn.state_dict(), model_file)
 
