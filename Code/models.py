@@ -232,3 +232,55 @@ def eval_model(model, dev_data_loader, device, label_set):
         print('Precision: {}'.format(precision/num_batches))
         print('Recall:    {}'.format(recall/num_batches))
         print('Confusion Matrix:    {}'.format(cm))
+
+def test_model(model_file, test_data_loader, device, label_set):
+
+    model = model.load_state_dict(torch.load(model_file))
+    model = model.to(device).eval()
+
+    label_arr=np.unique(np.array(list(label_set.values())))
+    print(label_arr)
+
+    loss_fn = nn.CrossEntropyLoss()
+    correct = 0
+    total = 0
+    ##
+    f1_micro = 0
+    f1_macro = 0
+    f1_weighted = 0
+    precision = 0
+    recall = 0
+    cm = np.zeros((len(label_arr),len(label_arr)))
+    num_batches = 0
+
+    with torch.no_grad():
+        running_eval_loss = 0
+        for inputs, labels in test_data_loader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            outputs = model(inputs)
+            loss_ = loss_fn(outputs, labels)
+            running_eval_loss += loss_
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+            labels = labels.cpu()
+            predicted = predicted.cpu()
+
+            f1_micro += f1_score(labels, predicted, average='micro')
+            f1_macro += f1_score(labels, predicted, average='macro')
+            f1_weighted += f1_score(labels, predicted, average='weighted')
+            precision += precision_score(labels, predicted, average='weighted')
+            recall += recall_score(labels, predicted, average='weighted')
+            cm = np.add(cm,confusion_matrix(labels, predicted,label_arr))
+            num_batches += 1
+
+        print('Overall Accuracy of the model on the test inputs: {} %'.format((correct / total) * 100))
+        print('Average f1, precision, and recall metrics over {} batches:'.format(num_batches))
+        print('F1 (micro):     {}'.format(f1_micro/num_batches))
+        print('F1 (macro):     {}'.format(f1_macro/num_batches))
+        print('F1 (weighted):  {}'.format(f1_weighted/num_batches))
+        print('Precision: {}'.format(precision/num_batches))
+        print('Recall:    {}'.format(recall/num_batches))
+        print('Confusion Matrix:    {}'.format(cm))

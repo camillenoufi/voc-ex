@@ -18,13 +18,17 @@ def main():
     parser.add_argument("--dir", help="location of local data dir", default=".")
     parser.add_argument("--train_dir", help="name of the train partition folder, must be a subfolder of 'dir' ", default="train")
     parser.add_argument("--dev_dir", help="name of the dev partition folder, must be a subfolder of 'dir' ", default="dev")
+    parser.add_argument("--test_dir", help="name of the dev partition folder, must be a subfolder of 'dir' ", default="test")
     parser.add_argument("--model", help="one of  knn, cnn, crnn or nolstm ", default="crnn")
     parser.add_argument("--vm_flag", help="0 = local, 1 = Azure VM", default=0)
+    parser.add_argument("--test", help="0 = train model, 1 = test model", default=0)
     args = parser.parse_args()
     dir =  args.dir if args.dir else '/home/group/dataset'  #dataset location in Azure VM
     train_dir =  args.train_dir if args.train_dir else 'train'  #dataset location in Azure VM
     dev_dir =  args.dev_dir if args.dev_dir else 'dev'  #dataset location in Azure VM
-    vm_flag = args.vm_flag if args.dev_dir else '0'
+    test_dir =  args.test_dir if args.test_dir else 'test'  #dataset location in Azure VM
+    vm_flag = args.vm_flag if args.vm_flag else '0'
+    test_flag = args.vm_flag if args.test_flag else '0'
     print(dir)
 
     if ( vm_flag=='1' and torch.cuda.is_available() ):
@@ -34,7 +38,17 @@ def main():
         print("Training on local datasets...")
         device = torch.device('cpu')
 
-    train_dicts, dev_dicts = load_train_and_dev(dir,train_dir,dev_dir,vm_flag)
+    # load data dictionaries
+    train_dicts = None
+    test_dicts = None
+    dev_dicts = None
+    if ( test_flag=='1'):
+        print("Test Mode...")
+        test_dicts = load_test(dir,test_dir,vm_flag)
+    else:
+        print("Train Mode...")
+        train_dicts, dev_dicts = load_train_and_dev(dir,train_dir,dev_dir,vm_flag)
+
     model = args.model
     fbins = 80
     time_steps = 204;
@@ -42,18 +56,19 @@ def main():
 
     if args.model == 'knn':
         print("Running KNN...")
-        runKNN(train_dicts, dev_dicts, input_dims, device)
+        runKNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag)
         #runKNN_withConcat(train_dicts, dev_dicts)
     if args.model == 'cnn':
         print("Running CNN...")
-        runVanillaCNN(train_dicts, dev_dicts, input_dims, device)
+        runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag)
     if args.model == 'crnn':
         print("Running CRNN...")
-        runCRNN(train_dicts, dev_dicts, input_dims, device)
+        runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag)
 
     if args.model == 'nolstm':
         print("Running CRNN without LSTM ...")
-        runCRNN(train_dicts, dev_dicts, input_dims, device, True)
+        runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, True)
+
 
 
 def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
@@ -109,13 +124,37 @@ def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
     train_dicts = train_embed_dict, train_label_dict, train_onehot_dict
     dev_dicts = dev_embed_dict, dev_label_dict, dev_onehot_dict
 
-    #test
-    #print(len(train_embed_dict))
-    #print(len(train_label_dict))
-    #print(len(dev_embed_dict))
-    #print(len(dev_label_dict))
-
     return train_dicts, dev_dicts
+
+def load_test(dir,test_dir,vm_flag):
+
+    print("Train:")
+    dl_train = DataLoader(dir, train_dir)
+    filepath_list_train = dl_train.load_filelist()
+
+    print("Validation:")
+    dl_dev = DataLoader(dir, dev_dir)
+    filepath_list_dev = dl_dev.load_filelist()
+
+    '''
+    Set label/metadata filenames depending on run version (local or full-azure)
+    '''
+    if (vm_flag=='1'):
+        test_fname = 'test_melfeats_all.pkl'
+        test_labels_fname = 'test_labels.csv'
+    else:
+        test_fname = 'dict_test_feats.pkl'
+        test_labels_fname = 'local_test.csv'
+    # For both versions:
+    label_list_fname = 'label_nums.csv'
+
+    embed_dict = dl_dev.convert_embed_dict_to_local(dl_dev.load_embedding_dict(fname=dev_fname))
+
+    label_dict = dl_dev.load_label_dict(metadata_file=dev_labels_fname)
+    onehot_dict = dl_dev.load_onehot_dict(label_list_fname=label_list_fname)
+
+    dicts = embed_dict, label_dict, onehot_dict
+    return dicts
 
 
 def setup_data_CNN(data_dicts, input_dims, batch_size, train=True):
@@ -186,175 +225,111 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, train=True):
         return loader, labels_range
 
 
-def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
+def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag):
 
-    train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
-    dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
-    train_labels_range, dev_labels_range = {}, {}
-    num_classes = len(train_onehot_dict)
-    num_samples = len(train_embed_dict)
-    num_dev_samples = len(dev_embed_dict) ###
+    model_file = "trained_cnn_model_params.bin"
+    if (test_flag=='1'):
+        test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
+        print("Setting up TEST data...")
+        test_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size = 128, train=False)
+        test_model(model_file, test_loader, device, label_set)
 
-    # Hyper-parameters
-    batch_size = 128
-    kernel_size = 3
-    in_channels = 1
-    num_filters = 32
-    dropout_rate = 0.3
-    learning_rate = 0.001
-    num_epochs = 40
-    # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
-
-    # Format Data for Train and Eval
-    print("Setting up TRAINING data for model...")
-    train_loader, valid_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
-    print("Setting up VALIDATION data for model...")
-    dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
-    # Initialize and Train Model
-    cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
-    #cnn = cnn.to(device)
-    cnn = train_model(cnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
-    torch.save(cnn.state_dict(), "trained_cnn_model_params.bin")
-
-    # Evaluate Model
-    eval_model(cnn, dev_loader, device, label_set)
-
-
-
-def runCRNN(train_dicts, dev_dicts, input_dims, device, nolstm = False):
-    train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
-    dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
-    train_labels_range, dev_labels_range = {}, {}
-    num_classes = len(train_onehot_dict)
-    num_samples = len(train_embed_dict)
-    num_dev_samples = len(dev_embed_dict)
-
-
-    # Hyper parameters
-    batch_size = 128
-    dropout_rate = 0.3
-    embed_size = 32
-    hidden_size = 32
-    num_layers = 2
-    input_size = 51 # input size for the LSTM
-    learning_rate = 0.001
-    num_epochs = 40
-
-    # Format Data for Train and Eval
-    print("Setting up TRAINING data for model...")
-    train_loader, valid_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
-
-    print("Train dataset...", len(train_loader.dataset))
-    print("Valid dataset...", len(valid_loader.dataset))
-
-
-    print("Setting up VALIDATION data for model...")
-    dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
-
-    # Initialize and Train Model
-    if (nolstm):
-        crnn = CRNNNoLSTM(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
     else:
-        crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
+        train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
+        dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
+        train_labels_range, dev_labels_range = {}, {}
+        num_classes = len(train_onehot_dict)
+        num_samples = len(train_embed_dict)
+        num_dev_samples = len(dev_embed_dict) ###
 
-    crnn = train_model(crnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
-    torch.save(crnn.state_dict(), "trained_crnn_model_params.bin")
+        # Hyper-parameters
+        batch_size = 128
+        kernel_size = 3
+        in_channels = 1
+        num_filters = 32
+        dropout_rate = 0.3
+        learning_rate = 0.001
+        num_epochs = 40
+        # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
 
-    # Evaluate Model
-    eval_model(crnn, dev_loader, device, label_set)
+        # Format Data for Train and Eval
+        print("Setting up TRAINING data for model...")
+        train_loader, valid_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
+        print("Setting up VALIDATION data for model...")
+        dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
+        # Initialize and Train Model
+        cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
+        #cnn = cnn.to(device)
+        cnn = train_model(cnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
+        torch.save(cnn.state_dict(), model_file)
 
-
-
-
-# OLD KNN CODE - DOES NOT ADJUST FOR NEW INPUT SIZES!!!
-def runKNN_withConcat(train_dicts, dev_dicts, device):
-    '''
-    Runs KNN model with input that is concatenated spectogram chunks, i.e. input is of size
-    (batch size   x  96 fq   x   172  timesteps * 48 numslices/file) (or about -- use 8053 instead because its the min)
-    '''
-    train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
-    dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
-    train_labels_range, dev_labels_range = {}, {}
-
-    for k,v in train_onehot_dict.items():
-        train_labels_range[k] = np.where(v==1)[0][0]
-
-    for k,v in dev_onehot_dict.items():
-        dev_labels_range[k] = np.where(v==1)[0][0]
-
-    num_samples = len(train_embed_dict)
-    num_slices = 48
-    X_train = np.zeros((num_samples, 96, 8053))
-    y_train = np.zeros((num_samples))
-    print("Loading X_train")
-
-    idx = 0
-    min_c_length = 10000
-    # Put together X_train by concatenating all feature slices of one file into one input
-    for file, feature_list in train_embed_dict.items():
-        num_slices = len(feature_list)
-        concat_features = None
-        first = True
-        for slice in feature_list:
-            if first == True:
-                concat_features = slice
-                first = False
-            else:
-                concat_features = np.concatenate((concat_features, slice), axis=1)
-
-        concat_features = concat_features[:,:8053]
-        X_train[idx] = concat_features
-        y_train[idx] = train_labels_range[train_label_dict[file]]
-        idx+=1
-
-    num_dev_samples = len(dev_embed_dict)
-    X_dev = np.zeros((num_dev_samples, 96, 8053))
-    y_dev = np.zeros((num_dev_samples))
-
-    idx = 0
-    min_c_length = 10000
-    for file, feature_list in dev_embed_dict.items():
-        num_slices = len(feature_list)
-        concat_features = None
-        first = True
-        for slice in feature_list:
-            if first == True:
-                concat_features = slice
-                first = False
-            else:
-                concat_features = np.concatenate((concat_features, slice), axis=1)
-        concat_features = concat_features[:,:8053]
-        X_dev[idx] = concat_features
-        y_dev[idx] = dev_labels_range[dev_label_dict[file]]
-        idx+=1
-
-    X_train = X_train.reshape(num_samples, 96 * 8053)
-    X_dev = X_dev.reshape(num_dev_samples, 96 * 8053)
-
-    num_classes = len(train_onehot_dict)
-    weighting = "uniform"
-    knn = simpleKNN(num_classes, weighting)
-
-    print("Fitting Simple KNN Model")
-    knn.fit(X_train, y_train)
-
-    print("Predicting on the dev set")
-    y_pred = knn.predict(X_dev)
-    score = accuracy_score(y_dev, y_pred)
-    print("Accuracy score: {} ".format(score))
+        # Evaluate Model
+        eval_model(cnn, dev_loader, device, label_set)
 
 
-def runKNN(train_dicts, dev_dicts, input_dims, batch_size):
+
+def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, nolstm = False):
+
+    model_file = "trained_crnn_model_params.bin"
+    if (test_flag=='1'):
+        test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
+        print("Setting up TEST data...")
+        test_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size = 128, train=False)
+        test_model(model_file, test_loader, device, label_set)
+
+    else:
+        train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
+        dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
+        train_labels_range, dev_labels_range = {}, {}
+        num_classes = len(train_onehot_dict)
+        num_samples = len(train_embed_dict)
+        num_dev_samples = len(dev_embed_dict)
+
+
+        # Hyper parameters
+        batch_size = 128
+        dropout_rate = 0.3
+        embed_size = 32
+        hidden_size = 32
+        num_layers = 2
+        input_size = 51 # input size for the LSTM
+        learning_rate = 0.001
+        num_epochs = 40
+
+        # Format Data for Train and Eval
+        print("Setting up TRAINING data for model...")
+        train_loader, valid_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
+
+        print("Train dataset...", len(train_loader.dataset))
+        print("Valid dataset...", len(valid_loader.dataset))
+
+
+        print("Setting up VALIDATION data for model...")
+        dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
+
+        # Initialize and Train Model
+        if (nolstm):
+            crnn = CRNNNoLSTM(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
+        else:
+            crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
+
+        crnn = train_model(crnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
+        torch.save(crnn.state_dict(), model_file)
+
+        # Evaluate Model
+        eval_model(crnn, dev_loader, device, label_set)
+
+
+def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag):
     ''' Runs KNN model with all chunks treated as separate input with their own labels
-    i.e. input is of shape (batchsize * 48 num_slices,  96 fq bins,   172 time)
     '''
 
     train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
     dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
     train_labels_range, dev_labels_range = {}, {}
-    fbins, time_steps = input_dims 
+    fbins, time_steps = input_dims
     start_frame = 4;  #chop off first 4 frames of each input
-    
+
     # convert labels from one-hot-encoding into range (0,num_class) - should be done in data loader but here for now
     for k,v in train_onehot_dict.items():
         train_labels_range[k] = np.where(v==1)[0][0]
@@ -383,26 +358,26 @@ def runKNN(train_dicts, dev_dicts, input_dims, batch_size):
         for i, slice in enumerate(feature_list):
             if slice.shape == (fbins, time_steps):
 		# reshaoe to be mfcc coefficent vectors
-		
+
                 list_X_dev.append(slice)
                 list_y_dev.append(dev_labels_range[dev_label_dict[file]])
-                
-                
+
+
     X_dev = np.stack(list_X_dev, axis = 2)
     y_dev = np.stack(list_y_dev, axis = 0)
-                                 
+
     #print("Shape of X_train : {} \n Shape of X_dev : {} \n ".format(X_train.shape, X_dev.shape))
     X_train = torch.from_numpy(X_train).permute(2,0,1) # batch, fq, time
     X_dev = torch.from_numpy(X_dev).permute(2,0,1)  # batch, fq, time
 
     num_train_samples = X_train.shape[0]
     num_dev_samples = X_dev.shape[0]
-    
+
     print("Shape of X_train : {} \n Shape of X_dev : {} \n ".format(X_train.shape, X_dev.shape))
-        
+
     X_train = X_train.reshape(num_train_samples, fbins*time_steps)
     X_dev = X_dev.reshape(num_dev_samples, fbins*time_steps)
-         
+
     num_classes = len(train_onehot_dict)
     weighting = "uniform"
     knn = simpleKNN(num_classes, weighting)
