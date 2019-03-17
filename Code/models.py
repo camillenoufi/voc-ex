@@ -27,7 +27,7 @@ class VanillaCNN(nn.Module):
         self.num_classes = num_classes # 10
         self.mp_kernel_size = 2
         self.dropout_rate = dropout_rate
-        self.fc1_input_size =  19008  #9504
+        self.fc1_input_size =  9504
         #fc1_input_size is dependent on kernel size and num filters, if those change, so will this number
         self.fc1_out_size = 594
 
@@ -186,7 +186,8 @@ def eval_model(model, dev_data_loader, device, label_set):
 
     model = model.to(device).eval()
 
-    label_arr=np.unique(np.array(list(label_set.items())))
+    label_arr=np.unique(np.array(list(label_set.values())))
+    print(label_arr)
 
     loss_fn = nn.CrossEntropyLoss()
     correct = 0
@@ -197,7 +198,7 @@ def eval_model(model, dev_data_loader, device, label_set):
     f1_weighted = 0
     precision = 0
     recall = 0
-    cm = []
+    cm = np.zeros((len(label_arr),len(label_arr)))
     num_batches = 0
 
     with torch.no_grad():
@@ -220,7 +221,7 @@ def eval_model(model, dev_data_loader, device, label_set):
             f1_weighted += f1_score(labels, predicted, average='weighted')
             precision += precision_score(labels, predicted, average='weighted')
             recall += recall_score(labels, predicted, average='weighted')
-            cm += confusion_matrix(labels, predicted)
+            cm = np.add(cm,confusion_matrix(labels, predicted,label_arr))
             num_batches += 1
 
         print('Test Accuracy of the model on the dev inputs: {} %'.format((correct / total) * 100))
@@ -230,4 +231,4 @@ def eval_model(model, dev_data_loader, device, label_set):
         print('F1 (weighted):  {}'.format(f1_weighted/num_batches))
         print('Precision: {}'.format(precision/num_batches))
         print('Recall:    {}'.format(recall/num_batches))
-        print('Confusion Matrix:    {}'.format(confusion_matrix))
+        print('Confusion Matrix:    {}'.format(cm))

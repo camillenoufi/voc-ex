@@ -20,7 +20,7 @@ class CRNN (nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
 
-        self.first = nn.Conv2d(1, embed_size, 5, stride=1, padding=1).double()
+        self.first = nn.Conv2d(1, embed_size, 10, stride=1, padding=1).double()
         self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d((2,2), (2,2)).double()
 

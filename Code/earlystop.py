@@ -11,7 +11,7 @@ class EarlyStopping:
             verbose (bool): If True, prints a message for each validation loss improvement. 
                             Default: False
         """
-        self.patience = 7
+        self.patience =  20
         self.verbose = verbose
         self.counter = 0
         self.best_score = None
@@ -28,7 +28,7 @@ class EarlyStopping:
             self.save_checkpoint(val_loss, model)
         elif score < self.best_score:
             self.counter += 1
-            print('EarlyStopping counter: {self.counter} out of {self.patience}')
+            print('EarlyStopping counter: {} out of {}'.format(self.counter, self.patience))
             if self.counter >= self.patience:
                 self.early_stop = True
         else:

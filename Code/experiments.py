@@ -9,7 +9,7 @@ import torch.utils.data as data_utils
 import torch
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix
 
 np.set_printoptions(threshold=np.nan)
 
@@ -199,10 +199,10 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
     batch_size = 128
     kernel_size = 3
     in_channels = 1
-    num_filters = 4
+    num_filters = 32
     dropout_rate = 0.3
-    learning_rate = 0.1
-    num_epochs = 1
+    learning_rate = 0.001
+    num_epochs = 40
     # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
 
     # Format Data for Train and Eval
@@ -210,9 +210,6 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
     train_loader, valid_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
     print("Setting up VALIDATION data for model...")
     dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
-    for k,v in label_set.items():
-        print(label_set[k])
-
     # Initialize and Train Model
     cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
     #cnn = cnn.to(device)
@@ -236,8 +233,8 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device, nolstm = False):
     # Hyper parameters
     batch_size = 128
     dropout_rate = 0.3
-    embed_size = 64
-    hidden_size = 64
+    embed_size = 32
+    hidden_size = 32
     num_layers = 2
     input_size = 51 # input size for the LSTM
     learning_rate = 0.001
@@ -347,7 +344,7 @@ def runKNN_withConcat(train_dicts, dev_dicts, device):
     print("Accuracy score: {} ".format(score))
 
 
-def runKNN(train_dicts, dev_dicts):
+def runKNN(train_dicts, dev_dicts, input_dims, batch_size):
     ''' Runs KNN model with all chunks treated as separate input with their own labels
     i.e. input is of shape (batchsize * 48 num_slices,  96 fq bins,   172 time)
     '''
@@ -355,7 +352,9 @@ def runKNN(train_dicts, dev_dicts):
     train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
     dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
     train_labels_range, dev_labels_range = {}, {}
-
+    fbins, time_steps = input_dims 
+    start_frame = 4;  #chop off first 4 frames of each input
+    
     # convert labels from one-hot-encoding into range (0,num_class) - should be done in data loader but here for now
     for k,v in train_onehot_dict.items():
         train_labels_range[k] = np.where(v==1)[0][0]
@@ -363,53 +362,71 @@ def runKNN(train_dicts, dev_dicts):
     for k,v in dev_onehot_dict.items():
         dev_labels_range[k] = np.where(v==1)[0][0]
 
-    # Put together X_train
-    num_samples = len(train_embed_dict)
-    num_slices = 48
-    X_train = np.zeros((num_samples*num_slices, 96, 172)) # try with just 13 fq bins?  #96 ,172))
-    y_train = np.zeros((num_samples*num_slices)) #, 96, 172))
 
-    print("Loading X_train")
-
-    sample_no = 0
+    print("...Loading training input and labels")
+    list_X = []
+    list_y = []
     for file, feature_list in train_embed_dict.items():
-        num_slices = len(feature_list)
-        for slice in feature_list:
-            # discard slices not of (96 x 172)
-            if slice.shape == (96, 172):
-                X_train[sample_no] = slice #[:13,:]
-                y_train[sample_no] = train_labels_range[train_label_dict[file]]
-                sample_no += 1
+        feature_list = feature_list[start_frame:]
+        for i, slice in enumerate(feature_list):
+            if slice.shape == (fbins, time_steps):
+                list_X.append(slice)
+                list_y.append(train_labels_range[train_label_dict[file]])
+    X_train = np.stack(list_X, axis = 2)
+    y_train = np.stack(list_y, axis = 0)
 
-    print("Loading X_dev")
-
-    num_dev_samples = len(dev_embed_dict)
-    X_dev  = np.zeros((num_dev_samples*num_slices, 96, 172)) # 96, 172))
-    y_dev = np.zeros((num_dev_samples*num_slices))
-
-    sample_no = 0
+    print("...Loading dev input and labels")
+    list_X_dev = []
+    list_y_dev = []
     for file, feature_list in dev_embed_dict.items():
-        num_slices = len(feature_list)
-        for slice in feature_list:
-            if slice.shape == (96, 172):
-                X_dev[sample_no] = slice  #[:13,:]
-                y_dev[sample_no] = dev_labels_range[dev_label_dict[file]]
-                sample_no += 1
+        feature_list = feature_list[start_frame:]
+        for i, slice in enumerate(feature_list):
+            if slice.shape == (fbins, time_steps):
+		# reshaoe to be mfcc coefficent vectors
+		
+                list_X_dev.append(slice)
+                list_y_dev.append(dev_labels_range[dev_label_dict[file]])
+                
+                
+    X_dev = np.stack(list_X_dev, axis = 2)
+    y_dev = np.stack(list_y_dev, axis = 0)
+                                 
+    #print("Shape of X_train : {} \n Shape of X_dev : {} \n ".format(X_train.shape, X_dev.shape))
+    X_train = torch.from_numpy(X_train).permute(2,0,1) # batch, fq, time
+    X_dev = torch.from_numpy(X_dev).permute(2,0,1)  # batch, fq, time
 
-
-    X_train = X_train.reshape(num_samples*num_slices, 96*172) # 96 * 172)
-    X_dev = X_dev.reshape(num_dev_samples*num_slices, 96*172) # 96 * 172)
-
+    num_train_samples = X_train.shape[0]
+    num_dev_samples = X_dev.shape[0]
+    
+    print("Shape of X_train : {} \n Shape of X_dev : {} \n ".format(X_train.shape, X_dev.shape))
+        
+    X_train = X_train.reshape(num_train_samples, fbins*time_steps)
+    X_dev = X_dev.reshape(num_dev_samples, fbins*time_steps)
+         
     num_classes = len(train_onehot_dict)
     weighting = "uniform"
     knn = simpleKNN(num_classes, weighting)
+
     print("Fitting Simple KNN Model")
     knn.fit(X_train, y_train)
+
     print("Predicting on the dev set")
     y_pred = knn.predict(X_dev)
-    score = accuracy_score(y_dev, y_pred)
-    print("Accuracy score: {} ".format(score))
+    accuracy_ = accuracy_score(y_dev, y_pred)
+    precision = precision_score(y_dev, y_pred, average='weighted')
+    recall = recall_score(y_dev, y_pred, average='weighted')
+    f1_micro = f1_score(y_dev, y_pred, average='micro')
+    f1_macro = f1_score(y_dev, y_pred, average='macro')
+    f1_weighted = f1_score(y_dev, y_pred, average='weighted')
+    confusion_mx = confusion_matrix(y_dev,y_pred)
 
+    print("Accuracy: {} ".format(accuracy_))
+    print('Precision: {}'.format(precision))
+    print('Recall:    {}'.format(recall))
+    print('F1 (micro):     {}'.format(f1_micro))
+    print('F1 (micro):     {}'.format(f1_macro))
+    print('F1 (weighted):  {}'.format(f1_weighted))
+    print('Confusion matrix: \n {} \n'.format(confusion_mx))
 
 if __name__ == '__main__':
     main()
