@@ -205,13 +205,13 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
     num_dev_samples = len(dev_embed_dict) ###
 
     # Hyper-parameters
-    batch_size = 128;
+    batch_size = 128
     kernel_size = 3
     in_channels = 1
     num_filters = 64
     dropout_rate = 0.3
     learning_rate = 0.001
-    num_epochs = 10
+    num_epochs = 40
     # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
 
     # Format Data for Train and Eval
@@ -248,7 +248,7 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device, nolstm = False):
     num_layers = 2
     input_size = 51 # input size for the LSTM
     learning_rate = 0.001
-    num_epochs = 2
+    num_epochs = 40
 
     # Format Data for Train and Eval
     print("Setting up TRAINING data for model...")
