@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 import random
 import numpy as np
-from models import VanillaCNN, train_model, eval_model
+from models import VanillaCNN, train_model, eval_model, test_model
 from load_data import DataLoader
 from crnn import CRNN, CRNNNoLSTM
 from knn import simpleKNN
@@ -21,14 +21,14 @@ def main():
     parser.add_argument("--test_dir", help="name of the dev partition folder, must be a subfolder of 'dir' ", default="test")
     parser.add_argument("--model", help="one of  knn, cnn, crnn or nolstm ", default="crnn")
     parser.add_argument("--vm_flag", help="0 = local, 1 = Azure VM", default=0)
-    parser.add_argument("--test", help="0 = train model, 1 = test model", default=0)
+    parser.add_argument("--test_flag", help="0 = train model, 1 = test model", default=0)
     args = parser.parse_args()
     dir =  args.dir if args.dir else '/home/group/dataset'  #dataset location in Azure VM
     train_dir =  args.train_dir if args.train_dir else 'train'  #dataset location in Azure VM
     dev_dir =  args.dev_dir if args.dev_dir else 'dev'  #dataset location in Azure VM
     test_dir =  args.test_dir if args.test_dir else 'test'  #dataset location in Azure VM
     vm_flag = args.vm_flag if args.vm_flag else '0'
-    test_flag = args.vm_flag if args.test_flag else '0'
+    test_flag = args.test_flag if args.test_flag else '0'
     print(dir)
 
     if ( vm_flag=='1' and torch.cuda.is_available() ):
@@ -128,14 +128,9 @@ def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
 
 def load_test(dir,test_dir,vm_flag):
 
-    print("Train:")
-    dl_train = DataLoader(dir, train_dir)
-    filepath_list_train = dl_train.load_filelist()
-
-    print("Validation:")
-    dl_dev = DataLoader(dir, dev_dir)
-    filepath_list_dev = dl_dev.load_filelist()
-
+    print("Test:")
+    dl_test = DataLoader(dir, test_dir)
+    filepath_list = dl_test.load_filelist()
     '''
     Set label/metadata filenames depending on run version (local or full-azure)
     '''
@@ -145,13 +140,13 @@ def load_test(dir,test_dir,vm_flag):
     else:
         test_fname = 'dict_test_feats.pkl'
         test_labels_fname = 'local_test.csv'
-    # For both versions:
+    
     label_list_fname = 'label_nums.csv'
 
-    embed_dict = dl_dev.convert_embed_dict_to_local(dl_dev.load_embedding_dict(fname=dev_fname))
+    embed_dict = dl_test.convert_embed_dict_to_local(dl_test.load_embedding_dict(fname=test_fname))
 
-    label_dict = dl_dev.load_label_dict(metadata_file=dev_labels_fname)
-    onehot_dict = dl_dev.load_onehot_dict(label_list_fname=label_list_fname)
+    label_dict = dl_test.load_label_dict(metadata_file=test_labels_fname)
+    onehot_dict = dl_test.load_onehot_dict(label_list_fname=label_list_fname)
 
     dicts = embed_dict, label_dict, onehot_dict
     return dicts
@@ -177,6 +172,7 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, train=True):
     for file, feature_list in embed_dict.items():
         feature_list = feature_list[start_frame:]
         for i, slice in enumerate(feature_list):
+#            print(slice.shape)
             if slice.shape == (fbins, time_steps):
                 list_X.append(slice)
                 list_y.append(labels_range[label_dict[file]])
@@ -231,7 +227,7 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_f
     if (test_flag=='1'):
         test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
         print("Setting up TEST data...")
-        test_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size = 128, train=False)
+        test_loader, label_set = setup_data_CNN(test_dicts, input_dims, batch_size = 128, train=False)
         test_model(model_file, test_loader, device, label_set)
 
     else:
