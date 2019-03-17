@@ -135,19 +135,10 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, train=True):
     print("...Loading input and labels")
     list_X = []
     list_y = []
-#    file_no = 0
     for file, feature_list in embed_dict.items():
-#        file_no+=1
-#        if file_no == 1000:
-#            print('At file 1000')
-#            break
         feature_list = feature_list[start_frame:]
         for i, slice in enumerate(feature_list):
-            #print(i)
-            #if (i%1000==0):
-            #    print(slice.shape)
             if slice.shape == (fbins, time_steps):
-#                print(file_no, i)
                 list_X.append(slice)
                 list_y.append(labels_range[label_dict[file]])
 
@@ -179,12 +170,12 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, train=True):
         train_sampler = SubsetRandomSampler(train_idx)
         valid_sampler = SubsetRandomSampler(valid_idx)
 
-        train_loader = data_utils.DataLoader(dataset, 
-                                            batch_size = batch_size, 
+        train_loader = data_utils.DataLoader(dataset,
+                                            batch_size = batch_size,
                                             sampler=train_sampler,
                                             num_workers=0)
-        valid_loader = data_utils.DataLoader(dataset, 
-                                            batch_size = batch_size, 
+        valid_loader = data_utils.DataLoader(dataset,
+                                            batch_size = batch_size,
                                             sampler=valid_sampler,
                                             num_workers=0)
         return (train_loader, valid_loader)
@@ -192,7 +183,7 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, train=True):
     else:
         dataset = data_utils.TensorDataset(X, y)
         loader = data_utils.DataLoader(dataset, batch_size = batch_size, shuffle=True)
-        return loader
+        return loader, labels_range
 
 
 def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
@@ -208,17 +199,19 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
     batch_size = 128
     kernel_size = 3
     in_channels = 1
-    num_filters = 64
+    num_filters = 4
     dropout_rate = 0.3
-    learning_rate = 0.001
-    num_epochs = 40
+    learning_rate = 0.1
+    num_epochs = 1
     # best is 0.0001 lr, 0.6 dropout, 8 epochs, up to 62.50% train ac, 14.0526% dev ac
 
     # Format Data for Train and Eval
     print("Setting up TRAINING data for model...")
     train_loader, valid_loader = setup_data_CNN(train_dicts, input_dims, batch_size)
     print("Setting up VALIDATION data for model...")
-    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size, False)
+    dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
+    for k,v in label_set.items():
+        print(label_set[k])
 
     # Initialize and Train Model
     cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
@@ -227,7 +220,7 @@ def runVanillaCNN(train_dicts, dev_dicts, input_dims, device):
     torch.save(cnn.state_dict(), "trained_cnn_model_params.bin")
 
     # Evaluate Model
-    eval_model(cnn, dev_loader, device)
+    eval_model(cnn, dev_loader, device, label_set)
 
 
 
@@ -259,19 +252,19 @@ def runCRNN(train_dicts, dev_dicts, input_dims, device, nolstm = False):
 
 
     print("Setting up VALIDATION data for model...")
-    dev_loader = setup_data_CNN(dev_dicts, input_dims, batch_size, False)
+    dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
 
     # Initialize and Train Model
     if (nolstm):
         crnn = CRNNNoLSTM(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
     else:
         crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
-    
+
     crnn = train_model(crnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
     torch.save(crnn.state_dict(), "trained_crnn_model_params.bin")
 
     # Evaluate Model
-    eval_model(crnn, dev_loader, device)
+    eval_model(crnn, dev_loader, device, label_set)
 
 
 

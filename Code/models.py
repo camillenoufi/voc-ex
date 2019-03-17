@@ -6,7 +6,7 @@ import torch.optim as optim
 import torch.nn.utils
 import torch.nn.functional as F
 from sklearn import neighbors, datasets
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix
 
 from earlystop import EarlyStopping
 
@@ -99,12 +99,12 @@ def train_model(model, train_data_loader, valid_loader, batch_size, learning_rat
     avg_train_losses = []
     avg_valid_losses = []
 
-    
+
 
     print("Starting Training")
 
     for epoch in range(0,num_epochs):
-        
+
         ###################
         # train the model #
         ###################
@@ -146,7 +146,7 @@ def train_model(model, train_data_loader, valid_loader, batch_size, learning_rat
                               (correct / total) * 100))
 
 
-        ######################    
+        ######################
         # validate the model #
         ######################
 
@@ -154,7 +154,7 @@ def train_model(model, train_data_loader, valid_loader, batch_size, learning_rat
         for data, target in valid_loader:
             data = data.to(device)
             target = target.to(device)
-            
+
             # forward pass: compute predicted outputs by passing inputs to the model
             output = model(data)
             # calculate the loss
@@ -164,7 +164,7 @@ def train_model(model, train_data_loader, valid_loader, batch_size, learning_rat
 
 
 
-        # print training/validation statistics 
+        # print training/validation statistics
         # calculate average loss over an epoch
         train_loss = np.average(train_losses)
         valid_loss = np.average(valid_losses)
@@ -182,9 +182,11 @@ def train_model(model, train_data_loader, valid_loader, batch_size, learning_rat
     return  model
 
 
-def eval_model(model, dev_data_loader, device):
+def eval_model(model, dev_data_loader, device, label_set):
 
     model = model.to(device).eval()
+
+    label_arr=np.unique(np.array(list(label_set.items())))
 
     loss_fn = nn.CrossEntropyLoss()
     correct = 0
@@ -197,7 +199,7 @@ def eval_model(model, dev_data_loader, device):
     recall = 0
     cm = []
     num_batches = 0
-                                
+
     with torch.no_grad():
         running_eval_loss = 0
         for inputs, labels in dev_data_loader:
@@ -210,20 +212,22 @@ def eval_model(model, dev_data_loader, device):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-            labels = labels.cpu() 
+            labels = labels.cpu()
             predicted = predicted.cpu()
-            
+
             f1_micro += f1_score(labels, predicted, average='micro')
             f1_macro += f1_score(labels, predicted, average='macro')
             f1_weighted += f1_score(labels, predicted, average='weighted')
             precision += precision_score(labels, predicted, average='weighted')
-            recall += recall_score(labels, predicted, average='weighted') 
+            recall += recall_score(labels, predicted, average='weighted')
+            cm += confusion_matrix(labels, predicted)
             num_batches += 1
 
         print('Test Accuracy of the model on the dev inputs: {} %'.format((correct / total) * 100))
         print('Average f1, precision, and recall metrics over {} batches:'.format(num_batches))
         print('F1 (micro):     {}'.format(f1_micro/num_batches))
-        print('F1 (micro):     {}'.format(f1_macro/num_batches))
+        print('F1 (macro):     {}'.format(f1_macro/num_batches))
         print('F1 (weighted):  {}'.format(f1_weighted/num_batches))
         print('Precision: {}'.format(precision/num_batches))
         print('Recall:    {}'.format(recall/num_batches))
+        print('Confusion Matrix:    {}'.format(confusion_matrix))
