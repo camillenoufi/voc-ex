@@ -374,7 +374,7 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
                 i = 0
                 while i<time_steps:
                     list_X.append(slice[:ftrunc,i])
-                    list_y.append(train_labels_range[dev_label_dict[file]])
+                    list_y.append(dev_labels_range[dev_label_dict[file]])
                     i += frame_skip
 
 
