@@ -247,6 +247,7 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_f
         num_samples = len(train_embed_dict)
         num_dev_samples = len(dev_embed_dict) ###
 
+
         # Learning Hyper-parameters
         batch_size = 128
         learning_rate = 0.001
@@ -259,7 +260,7 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_f
         dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
         # Initialize Model
         cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
-        cnn = train_model(cnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
+        cnn = train_model(cnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device, "cnn")
         torch.save(cnn.state_dict(), model_file)
 
         # Evaluate Model
@@ -313,12 +314,14 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, n
 
         print("Setting up VALIDATION data for model...")
         dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
+        model_name = "crnn"
         # Initialize Model
         if (nolstm):
             crnn = CRNNNoLSTM(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
+            model_name = "nolstm"
         else:
             crnn = CRNN(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
-        crnn = train_model(crnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device)
+        crnn = train_model(crnn, train_loader, valid_loader, num_samples, learning_rate, num_epochs, device, model_name)
         torch.save(crnn.state_dict(), model_file)
 
         # Evaluate Model
