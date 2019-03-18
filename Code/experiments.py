@@ -365,8 +365,8 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
     y_train = np.stack(list_y, axis = 0)
 
     print("...Loading dev input and labels")
-    list_X_dev = []
-    list_y_dev = []
+    list_X = []
+    list_y = []
     for file, feature_list in dev_embed_dict.items():
         feature_list = feature_list[start_frame:]
         for slice in feature_list:
@@ -378,8 +378,8 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
                     i += frame_skip
 
 
-    X_dev = np.stack(list_X_dev, axis = 1)
-    y_dev = np.stack(list_y_dev, axis = 0)
+    X_dev = np.stack(list_X, axis = 1)
+    y_dev = np.stack(list_y, axis = 0)
 
     X_train =np.transpose(X_train)
     X_dev = np.transpose(X_dev)
