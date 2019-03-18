@@ -235,7 +235,9 @@ def eval_model(model, dev_data_loader, device, label_set):
 
 def test_model(model, model_file, test_data_loader, device, label_set):
 
+    print(model)
     model = model.load_state_dict(torch.load(model_file))
+    print(model)
     model = model.to(device).eval()
 
     label_arr=np.unique(np.array(list(label_set.values())))

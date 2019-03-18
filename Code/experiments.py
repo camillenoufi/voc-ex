@@ -281,7 +281,7 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, n
         test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
         num_classes = len(test_onehot_dict)
         print("Setting up TEST data...")
-        test_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size = 128, train=False)
+        test_loader, label_set = setup_data_CNN(test_dicts, input_dims, batch_size = 128, train=False)
         # Initialize Model
         if (nolstm):
             crnn = CRNNNoLSTM(input_size, embed_size, hidden_size, num_layers, num_classes, device, dropout_rate)
