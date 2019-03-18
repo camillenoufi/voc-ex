@@ -228,7 +228,7 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_f
     in_channels = 1
     num_filters = 32
     dropout_rate = 0.3
-    model_file = "trained_cnn_model_params.bin"
+    model_file = "trained_cnn_model_params.pt"
 
     if (test_flag=='1'):
         test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
@@ -275,7 +275,7 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, n
     hidden_size = 32
     num_layers = 2
     input_size = 51 # input size for the LSTM
-    model_file = "trained_crnn_model_params.bin"
+    model_file = "trained_crnn_model_params.pt"
 
     if (test_flag=='1'):
         test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
@@ -353,7 +353,7 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
                 list_X.append(slice)
                 list_y.append(train_labels_range[train_label_dict[file]])
     X_train = np.stack(list_X, axis = 2)
-    y_train = np.stack(list_y, axis = 0)
+    y_train = np.stack(list_y, axis = 0)[:30000]
 
     print("...Loading dev input and labels")
     list_X_dev = []
@@ -369,7 +369,7 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
 
 
     X_dev = np.stack(list_X_dev, axis = 2)
-    y_dev = np.stack(list_y_dev, axis = 0)
+    y_dev = np.stack(list_y_dev, axis = 0)[:30000]
 
     #print("Shape of X_train : {} \n Shape of X_dev : {} \n ".format(X_train.shape, X_dev.shape))
     X_train = torch.from_numpy(X_train).permute(2,0,1) # batch, fq, time
@@ -380,8 +380,8 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
 
     print("Shape of X_train : {} \n Shape of X_dev : {} \n ".format(X_train.shape, X_dev.shape))
 
-    X_train = X_train.reshape(num_train_samples, fbins*time_steps)
-    X_dev = X_dev.reshape(num_dev_samples, fbins*time_steps)
+    X_train = X_train.reshape(num_train_samples, fbins*time_steps)[:30000,:]   # for now, half the number of samples
+    X_dev = X_dev.reshape(num_dev_samples, fbins*time_steps)[:30000,:]
 
     num_classes = len(train_onehot_dict)
     weighting = "uniform"
