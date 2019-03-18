@@ -375,11 +375,11 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
         feature_list = feature_list[start_frame:]
         for slice in feature_list:
             if slice.shape == (fbins, time_steps):
-            i = 0
-            while i<time_steps:
-                list_X.append(slice[:ftrunc,i])
-                list_y.append(train_labels_range[train_label_dict[file]])
-                i += frame_skip
+                i = 0
+                while i<time_steps:
+                    list_X.append(slice[:ftrunc,i])
+                    list_y.append(train_labels_range[train_label_dict[file]])
+                    i += frame_skip
 
 
     X_dev = np.stack(list_X_dev, axis = 1)
