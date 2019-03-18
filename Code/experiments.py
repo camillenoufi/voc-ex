@@ -336,7 +336,9 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
     dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
     train_labels_range, dev_labels_range = {}, {}
     fbins, time_steps = input_dims
+    ftrunc = 40;
     start_frame = 4;  #chop off first 4 frames of each input
+    frame_skip = 2;
 
     # convert labels from one-hot-encoding into range (0,num_class) - should be done in data loader but here for now
     for k,v in train_onehot_dict.items():
@@ -351,28 +353,37 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
     list_y = []
     for file, feature_list in train_embed_dict.items():
         feature_list = feature_list[start_frame:]
-        for i, slice in enumerate(feature_list):
+        for slice in feature_list:
             if slice.shape == (fbins, time_steps):
-                list_X.append(slice)
-                list_y.append(train_labels_range[train_label_dict[file]])
-    X_train = np.stack(list_X, axis = 2)
-    y_train = np.stack(list_y, axis = 0)[:30000]
+                i = 0
+                while i<time_steps:
+                    list_X.append(slice[:ftrunc,i])
+                    list_y.append(train_labels_range[train_label_dict[file]])
+                    i += frame_skip
+
+    X_train = np.stack(list_X, axis = 1)
+    y_train = np.stack(list_y, axis = 0)
+
+    print(X_train.shape)
+    print(y_train.shape)
+    print(aa)
 
     print("...Loading dev input and labels")
     list_X_dev = []
     list_y_dev = []
     for file, feature_list in dev_embed_dict.items():
         feature_list = feature_list[start_frame:]
-        for i, slice in enumerate(feature_list):
+        for slice in feature_list:
             if slice.shape == (fbins, time_steps):
-		# reshaoe to be mfcc coefficent vectors
+            i = 0
+            while i<time_steps:
+                list_X.append(slice[:ftrunc,i])
+                list_y.append(train_labels_range[train_label_dict[file]])
+                i += frame_skip
 
-                list_X_dev.append(slice)
-                list_y_dev.append(dev_labels_range[dev_label_dict[file]])
 
-
-    X_dev = np.stack(list_X_dev, axis = 2)
-    y_dev = np.stack(list_y_dev, axis = 0)[:30000]
+    X_dev = np.stack(list_X_dev, axis = 1)
+    y_dev = np.stack(list_y_dev, axis = 0)
 
     #print("Shape of X_train : {} \n Shape of X_dev : {} \n ".format(X_train.shape, X_dev.shape))
     X_train = torch.from_numpy(X_train).permute(2,0,1) # batch, fq, time
@@ -383,8 +394,8 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
 
     print("Shape of X_train : {} \n Shape of X_dev : {} \n ".format(X_train.shape, X_dev.shape))
 
-    X_train = X_train.reshape(num_train_samples, fbins*time_steps)[:30000,:]   # for now, half the number of samples
-    X_dev = X_dev.reshape(num_dev_samples, fbins*time_steps)[:30000,:]
+    X_train = X_train.reshape(num_train_samples, fbins*time_steps)
+    X_dev = X_dev.reshape(num_dev_samples, fbins*time_steps)
 
     num_classes = len(train_onehot_dict)
     weighting = "uniform"
