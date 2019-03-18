@@ -364,9 +364,6 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
     X_train = np.stack(list_X, axis = 1)
     y_train = np.stack(list_y, axis = 0)
 
-    print(X_train.shape)
-    print(y_train.shape)
-
     print("...Loading dev input and labels")
     list_X_dev = []
     list_y_dev = []
@@ -384,17 +381,11 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
     X_dev = np.stack(list_X_dev, axis = 1)
     y_dev = np.stack(list_y_dev, axis = 0)
 
-    #print("Shape of X_train : {} \n Shape of X_dev : {} \n ".format(X_train.shape, X_dev.shape))
-    X_train = torch.from_numpy(X_train).permute(2,0,1) # batch, fq, time
-    X_dev = torch.from_numpy(X_dev).permute(2,0,1)  # batch, fq, time
+    X_train =np.transpose(X_train)
+    X_dev = np.transpose(X_dev)
 
-    num_train_samples = X_train.shape[0]
-    num_dev_samples = X_dev.shape[0]
-
-    print("Shape of X_train : {} \n Shape of X_dev : {} \n ".format(X_train.shape, X_dev.shape))
-
-    X_train = X_train.reshape(num_train_samples, fbins*time_steps)
-    X_dev = X_dev.reshape(num_dev_samples, fbins*time_steps)
+    print(X_train.shape)
+    print(X_dev.shape)
 
     num_classes = len(train_onehot_dict)
     weighting = "uniform"
