@@ -361,12 +361,11 @@ def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag
                     list_y.append(train_labels_range[train_label_dict[file]])
                     i += frame_skip
 
-    X_train = np.stack(list_X, axis = 1)
+    X_train = np.stack(list_X, axis = 2)
     y_train = np.stack(list_y, axis = 0)
 
     print(X_train.shape)
     print(y_train.shape)
-    print(aa)
 
     print("...Loading dev input and labels")
     list_X_dev = []
