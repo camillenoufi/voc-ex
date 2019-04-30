@@ -20,22 +20,23 @@ def main():
     parser.add_argument("--dev_dir", help="name of the dev partition folder, must be a subfolder of 'dir' ", default="dev")
     parser.add_argument("--test_dir", help="name of the dev partition folder, must be a subfolder of 'dir' ", default="test")
     parser.add_argument("--model", help="one of  knn, cnn, crnn or nolstm ", default="crnn")
-    parser.add_argument("--vm_flag", help="0 = local, 1 = Azure VM", default=0)
+    parser.add_argument("--gpu_flag", help="0 = local, 1 = Azure VM", default=0)
     parser.add_argument("--test_flag", help="0 = train model, 1 = test model", default=0)
     args = parser.parse_args()
-    dir =  args.dir if args.dir else '/home/group/dataset'  #dataset location in Azure VM
+    dir =  args.dir if args.dir else './../../dataset'  #dataset location in Azure VM
     train_dir =  args.train_dir if args.train_dir else 'train'  #dataset location in Azure VM
     dev_dir =  args.dev_dir if args.dev_dir else 'dev'  #dataset location in Azure VM
     test_dir =  args.test_dir if args.test_dir else 'test'  #dataset location in Azure VM
-    vm_flag = args.vm_flag if args.vm_flag else '0'
+    vm_flag = args.gpu_flag if args.gpu_flag else '0'
     test_flag = args.test_flag if args.test_flag else '0'
     print(dir)
 
     if ( vm_flag=='1' and torch.cuda.is_available() ):
-        print("Training on Azure VM GPU...")
+        print("Training on GPU with CUDA:")
+        print(torch.cuda.get_device_name(0))
         device = torch.device('cuda')
     else:
-        print("Training on local datasets...")
+        print("Training on local datasets with CPU...")
         device = torch.device('cpu')
 
     # load data dictionaries
