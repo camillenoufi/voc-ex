@@ -1,82 +1,141 @@
+import os
 from argparse import ArgumentParser
 import random
 import numpy as np
+
 from models import VanillaCNN, train_model, eval_model, test_model
-from load_data import DataLoader
 from crnn import CRNN, CRNNNoLSTM
-from knn import simpleKNN
-import torch.utils.data as data_utils
+
 import torch
-from torch.utils.data.sampler import SubsetRandomSampler
-import torchvision.models as models
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
+from torch.optim import Adam
+from torchvision import models
+
 import matplotlib.pyplot as plt
+from misc_functions import preprocess_image, recreate_image, save_image
+
+"""
+Created on Sat Nov 18 23:12:08 2017
+
+@author: Utku Ozbulak - github.com/utkuozbulak
+updates by camille noufi 5/14/2019
+"""
 
 
-class SaveFeatures():
-    def __init__(self, module):
-        self.hook = module.register_forward_hook(self.hook_fn)
-    def hook_fn(self, module, input, output):
-        self.features = torch.tensor(output,requires_grad=True).cuda()
-    def close(self):
-        self.hook.remove()
+class CNNLayerVisualization():
+    """
+        Produces an image that minimizes the loss of a convolution
+        operation for a specific layer and filter
+    """
+    def __init__(self, model, selected_layer, selected_filter):
+        self.model = model
+        self.model.eval()
+        self.selected_layer = selected_layer
+        self.selected_filter = selected_filter
+        self.conv_output = 0
+        # Create the folder to export images if not exists
+        if not os.path.exists('../generated'):
+            os.makedirs('../generated')
 
+    def hook_layer(self):
+        def hook_function(module, grad_in, grad_out):
+            # Gets the conv output of the selected filter (from selected layer)
+            self.conv_output = grad_out[0, self.selected_filter]
+        # Hook the selected layer
+        self.model[self.selected_layer].register_forward_hook(hook_function)
 
-class FilterVisualizer():
-    def __init__(self, size=56, upscaling_steps=12, upscaling_factor=1.2):
-        self.size, self.upscaling_steps, self.upscaling_factor = size, upscaling_steps, upscaling_factor
-        self.model = vgg16(pretrained=True).cuda().eval()
-        set_trainable(self.model, False)
+    def visualise_layer_with_hooks(self):
+        # Hook the selected layer
+        self.hook_layer()
+        # Generate a random image
+        random_image = np.uint8(np.random.uniform(150, 180, (224, 224, 3)))
+        # Process image and return variable
+        processed_image = preprocess_image(random_image, False)
+        # Define optimizer for the image
+        optimizer = Adam([processed_image], lr=0.1, weight_decay=1e-6)
+        for i in range(1, 31):
+            optimizer.zero_grad()
+            # Assign create image to a variable to move forward in the model
+            x = processed_image
+            for index, layer in enumerate(self.model):
+                # Forward pass layer by layer
+                # x is not used after this point because it is only needed to trigger
+                # the forward hook function
+                x = layer(x)
+                # Only need to forward until the selected layer is reached
+                if index == self.selected_layer:
+                    # (forward hook function triggered)
+                    break
+            # Loss function is the mean of the output of the selected layer/filter
+            # We try to minimize the mean of the output of that specific filter
+            loss = -torch.mean(self.conv_output)
+            print('Iteration:', str(i), 'Loss:', "{0:.2f}".format(loss.data.numpy()))
+            # Backward
+            loss.backward()
+            # Update image
+            optimizer.step()
+            # Recreate image
+            self.created_image = recreate_image(processed_image)
+            # Save image
+            if i % 5 == 0:
+                im_path = '../generated/layer_vis_l' + str(self.selected_layer) + \
+                    '_f' + str(self.selected_filter) + '_iter' + str(i) + '.jpg'
+                save_image(self.created_image, im_path)
 
-    def visualize(self, layer, filter, lr=0.1, opt_steps=20, blur=None):
-        sz = self.size
-        img = np.uint8(np.random.uniform(150, 180, (sz, sz, 3)))/255  # generate random image
-        activations = SaveFeatures(list(self.model.children())[layer])  # register hook
-
-        for _ in range(self.upscaling_steps):  # scale the image up upscaling_steps times
-            train_tfms, val_tfms = tfms_from_model(vgg16, sz)
-            img_var = V(val_tfms(img)[None], requires_grad=True)  # convert image to Variable that requires grad
-            optimizer = torch.optim.Adam([img_var], lr=lr, weight_decay=1e-6)
-            for n in range(opt_steps):  # optimize pixel values for opt_steps times
-                optimizer.zero_grad()
-                self.model(img_var)
-                loss = -activations.features[0, filter].mean()
-                loss.backward()
-                optimizer.step()
-            img = val_tfms.denorm(img_var.data.cpu().numpy()[0].transpose(1,2,0))
-            self.output = img
-            sz = int(self.upscaling_factor * sz)  # calculate new image size
-            img = cv2.resize(img, (sz, sz), interpolation = cv2.INTER_CUBIC)  # scale image up
-            if blur is not None: img = cv2.blur(img,(blur,blur))  # blur image to reduce high frequency patterns
-        self.save(layer, filter)
-        activations.close()
-        
-    def save(self, layer, filter):
-        plt.imsave("layer_"+str(layer)+"_filter_"+str(filter)+".jpg", np.clip(self.output, 0, 1))
-
-
-
-
-def main():
-    print('Pytorch CUDA test:')
-    print(torch.__version__)
-    print(torch.cuda.is_available())
-
-
-#    layer = 30
-#    filter = 90
-
-#    FV = FilterVisualizer(size=56, upscaling_steps=12, upscaling_factor=1.2)
-#    FV.visualize(layer, filter, blur=5)
-
-#    img = PIL.Image.open("layer_"+str(layer)+"_filter_"+str(filter)+".jpg")
-#   plt.figure(figsize=(7,7))
-#    plt.grid(None)
-#    plt.imshow(img) 
-
+    def visualise_layer_without_hooks(self):
+        # Process image and return variable
+        # Generate a random image
+        random_image = np.uint8(np.random.uniform(150, 180, (224, 224, 3)))
+        # Process image and return variable
+        processed_image = preprocess_image(random_image, False)
+        # Define optimizer for the image
+        optimizer = Adam([processed_image], lr=0.1, weight_decay=1e-6)
+        for i in range(1, 31):
+            optimizer.zero_grad()
+            # Assign create image to a variable to move forward in the model
+            x = processed_image
+            for index, layer in enumerate(self.model):
+                # Forward pass layer by layer
+                x = layer(x)
+                if index == self.selected_layer:
+                    # Only need to forward until the selected layer is reached
+                    # Now, x is the output of the selected layer
+                    break
+            # Here, we get the specific filter from the output of the convolution operation
+            # x is a tensor of shape 1x512x28x28.(For layer 17)
+            # So there are 512 unique filter outputs
+            # Following line selects a filter from 512 filters so self.conv_output will become
+            # a tensor of shape 28x28
+            self.conv_output = x[0, self.selected_filter]
+            # Loss function is the mean of the output of the selected layer/filter
+            # We try to minimize the mean of the output of that specific filter
+            loss = -torch.mean(self.conv_output)
+            print('Iteration:', str(i), 'Loss:', "{0:.2f}".format(loss.data.numpy()))
+            # Backward
+            loss.backward()
+            # Update image
+            optimizer.step()
+            # Recreate image
+            self.created_image = recreate_image(processed_image)
+            # Save image
+            if i % 5 == 0:
+                im_path = '../generated/layer_vis_l' + str(self.selected_layer) + \
+                    '_f' + str(self.selected_filter) + '_iter' + str(i) + '.jpg'
+                save_image(self.created_image, im_path)
 
 
 if __name__ == '__main__':
-    main()
 
+    print('Pytorch CUDA test:')
+    print(torch.__version__)
+    print(torch.cuda.is_available())
+    cnn_layer = 17
+    filter_pos = 5
+    # Fully connected layer is not needed
+    pretrained_model = models.vgg16(pretrained=True).features
+    layer_vis = CNNLayerVisualization(pretrained_model, cnn_layer, filter_pos)
+
+    # Layer visualization with pytorch hooks
+    layer_vis.visualise_layer_with_hooks()
+
+    # Layer visualization without pytorch hooks
+    layer_vis.visualise_layer_without_hooks()
