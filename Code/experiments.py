@@ -228,7 +228,7 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_f
     kernel_size = 3
     in_channels = 1
     num_filters = 32
-    dropout_rate = 0.3
+    dropout_rate = 0.5
     model_file = "trained_cnn_model_params.pt"
 
     if (test_flag=='1'):
@@ -237,7 +237,7 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_f
         print("Setting up TEST data...")
         test_loader, label_set = setup_data_CNN(test_dicts, input_dims, batch_size = 128, train=False)
         # Initialize Model
-        cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate)
+        cnn = VanillaCNN(kernel_size, in_channels, num_filters, num_classes, dropout_rate) # dropout rate doesn't get used here
         test_model(cnn, model_file, test_loader, device, label_set)
 
     else:

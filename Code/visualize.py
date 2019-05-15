@@ -126,30 +126,42 @@ class CNNLayerVisualization():
                     '_f' + str(self.selected_filter) + '_iter' + str(i) + '_no-hook.jpg'
                 save_image(self.created_image, im_path)
 
-def load_model(filepath=None,params=None):
+def load_model(device,filepath=None,params=None):
     if filepath is None:
         loaded_model = models.vgg16(pretrained=True).features
         chan = 3
     else:
         mdl = VanillaCNN(params['kernel_size'], params['in_channels'], params['num_filters'], params['num_classes'], params['dropout_rate'])
         print(mdl)
-        loaded = torch.load(model_file, map_location='cpu')
+        loaded = torch.load(model_file, map_location=device)
         print(loaded)
-        loaded_model = mdl.load_state_dict(loaded)
+        loaded_model = mdl.load_state_dict(loaded).to(device).eval()
         print(loaded_model)
-        loaded_model = loaded_model.to(device).eval()
+        
+        
+def get_computing_device():
+    print('Pytorch CUDA test:')
+    print(torch.__version__)
+    print(torch.cuda.is_available())
+    
+    device = torch.device('cpu')
+    if torch.cuda.is_available():
+        device = torch.device('cuda') 
+        
+    return device
 
 
 
 if __name__ == '__main__':
-
-    print('Pytorch CUDA test:')
-    print(torch.__version__)
-    print(torch.cuda.is_available())
+    
+    #print available computing state
+    device = get_computing_device()
+    
+    #visualization params:
     cnn_layer = 2
     filter_pos = 5
-    # Fully connected layer is not needed
-
+    
+    #load desired model:
     params = {}
     params['kernel_size'] = 3
     params['in_channels'] = 1
@@ -157,9 +169,9 @@ if __name__ == '__main__':
     params['dropout_rate'] = 0.5
     params['num_classes'] = 10
     model_file = "trained_cnn_model_params.pt"
-    pretrained_model = load_model(model_file,params)
+    pretrained_model = load_model(device,model_file,params)
 
-
+    #declare visualization instance
     layer_vis = CNNLayerVisualization(pretrained_model, cnn_layer, filter_pos)
 
     # Layer visualization with pytorch hooks
