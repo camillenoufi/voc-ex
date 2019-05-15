@@ -50,6 +50,8 @@ class CNNLayerVisualization():
         random_image = np.uint8(np.random.uniform(150, 180, (224, 224, 3)))
         # Process image and return variable
         processed_image = preprocess_image(random_image, False)
+        print("hook")
+        print(processed_image.shape)
         # Define optimizer for the image
         optimizer = Adam([processed_image], lr=0.1, weight_decay=1e-6)
         for i in range(1, 31):
@@ -75,10 +77,10 @@ class CNNLayerVisualization():
             optimizer.step()
             # Recreate image
             self.created_image = recreate_image(processed_image)
-            # Save image
+            # Save image every 5th iteration of backprop
             if i % 5 == 0:
                 im_path = '../generated/layer_vis_l' + str(self.selected_layer) + \
-                    '_f' + str(self.selected_filter) + '_iter' + str(i) + '.jpg'
+                    '_f' + str(self.selected_filter) + '_iter' + str(i) + '_hook.jpg'
                 save_image(self.created_image, im_path)
 
     def visualise_layer_without_hooks(self):
@@ -87,6 +89,8 @@ class CNNLayerVisualization():
         random_image = np.uint8(np.random.uniform(150, 180, (224, 224, 3)))
         # Process image and return variable
         processed_image = preprocess_image(random_image, False)
+        print("non-hook")
+        print(processed_image.shape)
         # Define optimizer for the image
         optimizer = Adam([processed_image], lr=0.1, weight_decay=1e-6)
         for i in range(1, 31):
@@ -119,8 +123,22 @@ class CNNLayerVisualization():
             # Save image
             if i % 5 == 0:
                 im_path = '../generated/layer_vis_l' + str(self.selected_layer) + \
-                    '_f' + str(self.selected_filter) + '_iter' + str(i) + '.jpg'
+                    '_f' + str(self.selected_filter) + '_iter' + str(i) + '_no-hook.jpg'
                 save_image(self.created_image, im_path)
+
+def load_model(filepath=None,params=None):
+    if filepath is None:
+        loaded_model = models.vgg16(pretrained=True).features
+        chan = 3
+    else:
+        mdl = VanillaCNN(params['kernel_size'], params['in_channels'], params['num_filters'], params['num_classes'], params['dropout_rate'])
+        print(mdl)
+        loaded = torch.load(model_file, map_location='cpu')
+        print(loaded)
+        loaded_model = mdl.load_state_dict(loaded)
+        print(loaded_model)
+        loaded_model = loaded_model.to(device).eval()
+
 
 
 if __name__ == '__main__':
@@ -128,10 +146,20 @@ if __name__ == '__main__':
     print('Pytorch CUDA test:')
     print(torch.__version__)
     print(torch.cuda.is_available())
-    cnn_layer = 17
+    cnn_layer = 2
     filter_pos = 5
     # Fully connected layer is not needed
-    pretrained_model = models.vgg16(pretrained=True).features
+
+    params = {}
+    params['kernel_size'] = 3
+    params['in_channels'] = 1
+    params['num_filters'] = 32
+    params['dropout_rate'] = 0.5
+    params['num_classes'] = 10
+    model_file = "trained_cnn_model_params.pt"
+    pretrained_model = load_model(model_file,params)
+
+
     layer_vis = CNNLayerVisualization(pretrained_model, cnn_layer, filter_pos)
 
     # Layer visualization with pytorch hooks
