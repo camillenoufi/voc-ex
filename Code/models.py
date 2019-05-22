@@ -235,12 +235,12 @@ def eval_model(model, dev_data_loader, device, label_set):
 
 def test_model(model, model_file, test_data_loader, device, label_set):
 
-    print(model)
-    model = model.load_state_dict(torch.load(model_file))
-    print(model)
-    model = model.to(device).eval()
-    print(model)
-    print(aa)
+    #print(model)
+    model.load_state_dict(torch.load(model_file))
+    #print(model)
+    model.to(device).eval()
+    #print(model)
+    #print(aa)
 
     label_arr=np.unique(np.array(list(label_set.values())))
     print(label_arr)
@@ -279,12 +279,13 @@ def test_model(model, model_file, test_data_loader, device, label_set):
             recall += recall_score(labels, predicted, average='weighted')
             cm = np.add(cm,confusion_matrix(labels, predicted,label_arr))
             num_batches += 1
-
-        print('Overall Accuracy of the model on the test inputs: {} %'.format((correct / total) * 100))
-        print('Average f1, precision, and recall metrics over {} batches:'.format(num_batches))
-        print('F1 (micro):     {}'.format(f1_micro/num_batches))
-        print('F1 (macro):     {}'.format(f1_macro/num_batches))
-        print('F1 (weighted):  {}'.format(f1_weighted/num_batches))
-        print('Precision: {}'.format(precision/num_batches))
-        print('Recall:    {}'.format(recall/num_batches))
-        print('Confusion Matrix:    {}'.format(cm))
+     
+    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis] #normalize confusion matrix       
+    print('Overall Accuracy of the model on the test inputs: {} %'.format((correct / total) * 100))
+    print('Average f1, precision, and recall metrics over {} batches:'.format(num_batches))
+    print('F1 (micro):     {}'.format(f1_micro/num_batches))
+    print('F1 (macro):     {}'.format(f1_macro/num_batches))
+    print('F1 (weighted):  {}'.format(f1_weighted/num_batches))
+    print('Precision: {}'.format(precision/num_batches))
+    print('Recall:    {}'.format(recall/num_batches))
+    print('Confusion Matrix:    {}'.format(cm))

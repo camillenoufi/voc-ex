@@ -48,7 +48,7 @@ class CNNLayerVisualization():
         # Hook the selected layer
         self.hook_layer()
         # Generate a random image
-        random_image = np.uint8(np.random.uniform(150, 180, (224, 224, self.in_channels)))
+        random_image = np.uint8(np.random.uniform(150, 180, (172, 80, self.in_channels)))
         # Process image and return variable
         processed_image = preprocess_image(random_image, False)
         print("hook")
@@ -56,7 +56,7 @@ class CNNLayerVisualization():
         # Define optimizer for the image
         optimizer = Adam([processed_image], lr=0.1, weight_decay=1e-6)
         nlayers = len(self.model)
-        for i in range(1, nlayers):
+        for i in range(1, 3):
             optimizer.zero_grad()
             # Assign create image to a variable to move forward in the model
             x = processed_image
@@ -87,16 +87,18 @@ class CNNLayerVisualization():
 
     def visualise_layer_without_hooks(self):
         # Process image and return variable
+        
+        print("Without Hooks:")
         # Generate a random image
-        random_image = np.uint8(np.random.uniform(150, 180, (224, 224, self.in_channels)))
+        random_image = np.uint8(np.random.uniform(150, 180, (172, 80, self.in_channels)))
         # Process image and return variable
         processed_image = preprocess_image(random_image, False)
-        print("non-hook")
+        
         print(processed_image.shape)
         # Define optimizer for the image
-        nlayers = len(self.model)
+        #nlayers = len(self.model)
         optimizer = Adam([processed_image], lr=0.1, weight_decay=1e-6)
-        for i in range(1, nlayers):
+        for i in range(1, 31):
             optimizer.zero_grad()
             # Assign create image to a variable to move forward in the model
             x = processed_image
@@ -129,30 +131,32 @@ class CNNLayerVisualization():
                     '_f' + str(self.selected_filter) + '_iter' + str(i) + '_no-hook.jpg'
                 save_image(self.created_image, im_path)
 
+
 def load_model(device,filepath=None,params=None):
     if filepath is None:
-        loaded_model = models.vgg16(pretrained=True).features
+        model = models.vgg16(pretrained=True).features
         nchan = 3
     else:
-        mdl = VanillaCNN(params['kernel_size'], params['in_channels'], params['num_filters'], params['num_classes'], params['dropout_rate'])
-        print(mdl)
-        weight_dict = torch.load(model_file, map_location=device)
-        print(weight_dict)
-        loaded_model = mdl.load_state_dict(weight_dict)
-        print(loaded_model)
+        model = VanillaCNN(params['kernel_size'], params['in_channels'], params['num_filters'], params['num_classes'], params['dropout_rate'])
+        w = torch.load(model_file) #map_location = device
+        model.load_state_dict(w)
         nchan = 1
-    return (loaded_model, nchan)
+    return (model, nchan)
+
 
 
 def get_computing_device():
-    print('Pytorch CUDA test:')
-    print(torch.__version__)
-    print(torch.cuda.is_available())
+#     print('Pytorch CUDA test:')
+#     print(torch.__version__)
+#     print(torch.cuda.is_available())
 
     device = torch.device('cpu')
     if torch.cuda.is_available():
         device = torch.device('cuda')
-
+        print('Using CUDA GPU\n')
+    else:
+        print('Using CPU\n')
+    
     return device
 
 
@@ -163,7 +167,7 @@ if __name__ == '__main__':
     device = get_computing_device()
 
     #visualization params:
-    cnn_layer = 20
+    cnn_layer = 3
     filter_pos = 5
 
     #load desired model:
@@ -174,15 +178,20 @@ if __name__ == '__main__':
     params['dropout_rate'] = 0.5
     params['num_classes'] = 10
 
-    #model_file = None
+    #model_file = None #use for loading pretrained VGG16
     model_file = "trained_cnn_model_params.pt"
-    (pretrained_model,nchan) = load_model(device,model_file,params)
+    (model,nchan) = load_model(device,model_file,params)
+    
+    print("Loaded Model:\n")
+    print(model.conv1)
 
+    
+    
     #declare visualization instance
-    lv = CNNLayerVisualization(pretrained_model, nchan, cnn_layer, filter_pos)
+    lv = CNNLayerVisualization(model, nchan, cnn_layer, filter_pos)
 
     # Layer visualization with pytorch hooks
-    lv.visualise_layer_with_hooks()
+    #lv.visualise_layer_with_hooks()
 
     # Layer visualization without pytorch hooks
     lv.visualise_layer_without_hooks()

@@ -32,11 +32,11 @@ def main():
     print(dir)
 
     if ( vm_flag=='1' and torch.cuda.is_available() ):
-        print("Training on GPU with CUDA:")
+        print("Running on GPU with CUDA:")
         print(torch.cuda.get_device_name(0))
         device = torch.device('cuda')
     else:
-        print("Training on local datasets with CPU...")
+        print("Running on local datasets with CPU...")
         device = torch.device('cpu')
 
     # load data dictionaries
