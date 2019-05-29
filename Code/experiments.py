@@ -22,6 +22,7 @@ def main():
     parser.add_argument("--model", help="one of  knn, cnn, crnn or nolstm ", default="crnn")
     parser.add_argument("--gpu_flag", help="0 = local, 1 = Azure VM", default=0)
     parser.add_argument("--test_flag", help="0 = train model, 1 = test model", default=0)
+    parser.add_argument("--feature", help="0 = Mel spectrogram, 1 = STFT, 2 = HPSS-harmonics, 3 = HPSS-percussion", default="0")
     args = parser.parse_args()
     dir =  args.dir if args.dir else './../../dataset'  #dataset location in Azure VM
     train_dir =  args.train_dir if args.train_dir else 'train'  #dataset location in Azure VM
@@ -29,6 +30,7 @@ def main():
     test_dir =  args.test_dir if args.test_dir else 'test'  #dataset location in Azure VM
     vm_flag = args.gpu_flag if args.gpu_flag else '0'
     test_flag = args.test_flag if args.test_flag else '0'
+    feature = args.feature if args.feature else '0'
     print(dir)
 
     if ( vm_flag=='1' and torch.cuda.is_available() ):
@@ -45,15 +47,13 @@ def main():
     dev_dicts = None
     if ( test_flag=='1'):
         print("Test Mode...")
-        test_dicts = load_test(dir,test_dir,vm_flag)
+        test_dicts = load_test(dir,test_dir,vm_flag,feature)
     else:
         print("Train Mode...")
-        train_dicts, dev_dicts = load_train_and_dev(dir,train_dir,dev_dir,vm_flag)
+        train_dicts, dev_dicts = load_train_and_dev(dir,train_dir,dev_dir,vm_flag,feature)
 
     model = args.model
-    fbins = 80
-    time_steps = 204;
-    input_dims = (fbins,time_steps)
+    input_dims = get_input_dims(feature)
 
     if args.model == 'knn':
         print("Running KNN...")
@@ -70,9 +70,25 @@ def main():
         print("Running CRNN without LSTM ...")
         runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, True)
 
+def get_input_dims(feature):
+    if (feature == '0'):
+        fbins = 64
+        time_steps =
+    elif (feature == '1'):
+        fbins =
+        time_steps =
+    elif (feature == '2'):
+        fbins =
+        time_steps =
+    elif (feature == '3'):
+        fbins =
+        time_steps =
+    else:
+        fbins = 0
+        time_steps = 0
+    return (fbins,time_steps)
 
-
-def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
+def load_train_and_dev(dir,train_dir,dev_dir,vm_flag,feature):
 
     print("Train:")
     dl_train = DataLoader(dir, train_dir)
@@ -86,15 +102,20 @@ def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
     Set label/metadata filenames depending on run version (local or full-azure)
     '''
     if (vm_flag=='1'):
-        train_fname = 'train_melfeats_balanced.pkl'
+        if (feature == '0'):
+            train_fname = 'train_melfeats_balanced.pkl'
+        elif (feature == '1'):
+            train_fname = 'train_stft_balanced.pkl'
+        elif (feature == '2'):
+            train_fname = 'train_hpss_balanced.pkl'
+        elif (feature == '3'):
+            train_fname = 'train_hpss_balanced.pkl'
         train_labels_fname = 'trainBalanced_labels.csv'
-        dev_fname = 'dev_melfeats_all.pkl'
-        dev_labels_fname = 'dev_labels.csv'
     else:
         train_fname = 'dict_trainBal_feats.pkl'
         train_labels_fname = 'local_train_bal.csv'
-        dev_fname = 'dict_dev_feats.pkl'
-        dev_labels_fname = 'local_dev.csv'
+        #dev_fname = 'dict_dev_feats.pkl'
+        #dev_labels_fname = 'local_dev.csv'
     # For both versions:
     label_list_fname = 'label_nums.csv'
 
@@ -127,7 +148,7 @@ def load_train_and_dev(dir,train_dir,dev_dir,vm_flag):
 
     return train_dicts, dev_dicts
 
-def load_test(dir,test_dir,vm_flag):
+def load_test(dir,test_dir,vm_flag,feature):
 
     print("Test:")
     dl_test = DataLoader(dir, test_dir)
@@ -136,8 +157,15 @@ def load_test(dir,test_dir,vm_flag):
     Set label/metadata filenames depending on run version (local or full-azure)
     '''
     if (vm_flag=='1'):
-        test_fname = 'test_melfeats_all.pkl'
-        test_labels_fname = 'test_labels.csv'
+        if (feature == '0'):
+            test_fname = 'test_melfeats_all.pkl'
+        elif (feature == '1'):
+            test_fname = 'test_stft_all.pkl'
+        elif (feature == '2'):
+            test_fname = 'test_hpss_all.pkl'
+        elif (feature == '3'):
+            test_fname = 'test_hpss_all.pkl'
+        test_labels_fname = 'trainBalanced_labels.csv'
     else:
         test_fname = 'dict_test_feats.pkl'
         test_labels_fname = 'local_test.csv'
