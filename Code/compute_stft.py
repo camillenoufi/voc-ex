@@ -29,20 +29,17 @@ def sliceFeatures(S,nsec):
         i = i+hop_size
     return feature_list
 
-# Compute Mel spectrogram features and slice
-def computeMelFeatureSlices(file):
+# Compute STFT features and slice
+def computeSTFTSlices(file):
     x, fs = librosa.load(os.path.join(master_path, f))
     xlen = len(x) #length of audio file in samples
     nsec = xlen/fs #length of audio file in seconds
-    S = librosa.feature.melspectrogram(x, sr=fs, n_fft=2048, hop_length=512, power=2.0)
+    S = librosa.stft(x, n_fft=1024, hop_length=256)
     #S -= (np.mean(S, axis=0) + 1e-8)
-    S = librosa.power_to_db(S) #convert to log-mel spectrogram
-    print(S.shape)
-    print(aa)
-    S = S[:64,:] # 64 mel frequency bins selected
-    #ids = np.where(S < -60)
-    #S[ids[0],ids[1]] = -60
-    #S = sp.stats.zscore(S,axis=None);
+    S_magnitude, S_phase = librosa.magphase(S)
+    S = librosa.amplitude_to_db(S_magnitude) #convert to log spectrogram and drop phase
+    nfbins = int(np.floor(S.shape[0]/2))
+    S = S[:nfbins,:] # lower half of the frequency bins selected
 
     feature_list = sliceFeatures(S,nsec)
     return feature_list
@@ -71,10 +68,10 @@ if __name__ == '__main__':
    filepaths = [os.path.join(master_path, f) for f in filenames if f.endswith(wavX)]
    filepaths.sort()
 
-   # for a file, compute mel spectrogram and slice it into smaller features, then add array of features to the dictionary
+   # for a file, compute stft and slice it into smaller features, then add array of features to the dictionary
    i=1
    for f in filepaths:
-       feature_list = computeMelFeatureSlices(f);
+       feature_list = computeSTFTSlices(f);
        dict_file2feature_list[f] = feature_list
        print(i)
        i=i+1
