@@ -289,3 +289,6 @@ def test_model(model, model_file, test_data_loader, device, label_set):
     print('Precision: {}'.format(precision/num_batches))
     print('Recall:    {}'.format(recall/num_batches))
     print('Confusion Matrix:    {}'.format(cm))
+
+def savePerformanceMetrics(f1_micro,f1_macro,f1_weighted,precision,recall,cm,num_batches):
+    i = 1
