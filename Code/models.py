@@ -178,7 +178,7 @@ def train_model(model, train_data_loader, valid_loader, batch_size, learning_rat
         if early_stopping.early_stop:
             break
 
-    model.load_state_dict(torch.load('checkpoint_crnn.pt'))
+    model.load_state_dict(torch.load('checkpoint_' + model_name + '.pt'))
     return  model
 
 

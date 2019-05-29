@@ -17,20 +17,24 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("--dir", help="location of local data dir", default=".")
     parser.add_argument("--train_dir", help="name of the train partition folder, must be a subfolder of 'dir' ", default="train")
-    parser.add_argument("--dev_dir", help="name of the dev partition folder, must be a subfolder of 'dir' ", default="dev")
+    parser.add_argument("--dev_dir", help="name of the dev partition folder, must be a subfolder of 'dir' ", default="test")
     parser.add_argument("--test_dir", help="name of the dev partition folder, must be a subfolder of 'dir' ", default="test")
     parser.add_argument("--model", help="one of  knn, cnn, crnn or nolstm ", default="crnn")
     parser.add_argument("--gpu_flag", help="0 = local, 1 = Azure VM", default=0)
     parser.add_argument("--test_flag", help="0 = train model, 1 = test model", default=0)
     parser.add_argument("--feature", help="0 = Mel spectrogram, 1 = STFT, 2 = HPSS-harmonics, 3 = HPSS-percussion", default="0")
+    parser.add_argument("--model_file", help="name of .pt model dict file you want to test", default=None)
     args = parser.parse_args()
     dir =  args.dir if args.dir else './../../dataset'  #dataset location in Azure VM
     train_dir =  args.train_dir if args.train_dir else 'train'  #dataset location in Azure VM
-    dev_dir =  args.dev_dir if args.dev_dir else 'dev'  #dataset location in Azure VM
+    dev_dir =  args.dev_dir if args.dev_dir else 'test'  #dataset location in Azure VM
     test_dir =  args.test_dir if args.test_dir else 'test'  #dataset location in Azure VM
     vm_flag = args.gpu_flag if args.gpu_flag else '0'
     test_flag = args.test_flag if args.test_flag else '0'
     feature = args.feature if args.feature else '0'
+    feature = args.feature if args.feature else '0'
+    model_file = args.model_file if args.model_file else None
+    print(model_file)
     print(dir)
 
     if ( vm_flag=='1' and torch.cuda.is_available() ):
@@ -61,32 +65,15 @@ def main():
         #runKNN_withConcat(train_dicts, dev_dicts)
     if args.model == 'cnn':
         print("Running CNN...")
-        runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag)
+        runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, device, test_flag, model_file)
     if args.model == 'crnn':
         print("Running CRNN...")
-        runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag)
+        runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, device, test_flag, model_file)
 
     if args.model == 'nolstm':
         print("Running CRNN without LSTM ...")
-        runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, True)
+        runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, device, test_flag, model_file, True)
 
-def get_input_dims(feature):
-    if (feature == '0'):
-        fbins = 64
-        time_steps =
-    elif (feature == '1'):
-        fbins =
-        time_steps =
-    elif (feature == '2'):
-        fbins =
-        time_steps =
-    elif (feature == '3'):
-        fbins =
-        time_steps =
-    else:
-        fbins = 0
-        time_steps = 0
-    return (fbins,time_steps)
 
 def load_train_and_dev(dir,train_dir,dev_dir,vm_flag,feature):
 
@@ -104,13 +91,18 @@ def load_train_and_dev(dir,train_dir,dev_dir,vm_flag,feature):
     if (vm_flag=='1'):
         if (feature == '0'):
             train_fname = 'train_melfeats_balanced.pkl'
+            dev_fname = 'test_melfeats_all.pkl'
         elif (feature == '1'):
             train_fname = 'train_stft_balanced.pkl'
+            dev_fname = 'test_stft_all.pkl'
         elif (feature == '2'):
-            train_fname = 'train_hpss_balanced.pkl'
+            train_fname = 'train_hpss_balanced_h.pkl'
+            dev_fname = 'test_hpss_all_h.pkl'
         elif (feature == '3'):
-            train_fname = 'train_hpss_balanced.pkl'
-        train_labels_fname = 'trainBalanced_labels.csv'
+            train_fname = 'train_hpss_balanced_p.pkl'
+            dev_fname = 'test_hpss_all_p.pkl'
+        train_labels_fname = 'train_labels.csv'
+        dev_labels_fname = 'test_labels.csv'
     else:
         train_fname = 'dict_trainBal_feats.pkl'
         train_labels_fname = 'local_train_bal.csv'
@@ -162,10 +154,10 @@ def load_test(dir,test_dir,vm_flag,feature):
         elif (feature == '1'):
             test_fname = 'test_stft_all.pkl'
         elif (feature == '2'):
-            test_fname = 'test_hpss_all.pkl'
+            test_fname = 'test_hpss_all_h.pkl'
         elif (feature == '3'):
-            test_fname = 'test_hpss_all.pkl'
-        test_labels_fname = 'trainBalanced_labels.csv'
+            test_fname = 'test_hpss_all_p.pkl'
+        test_labels_fname = 'test_labels.csv'
     else:
         test_fname = 'dict_test_feats.pkl'
         test_labels_fname = 'local_test.csv'
@@ -180,6 +172,18 @@ def load_test(dir,test_dir,vm_flag,feature):
     dicts = embed_dict, label_dict, onehot_dict
     return dicts
 
+
+def get_input_dims(feature):
+    if (feature == '0'): #mel
+        fbins = 64
+        time_steps = 25
+    elif (feature == '1' | feature == '2' | feature == '3'): #stft or hpss
+        fbins = 256
+        time_steps = 51
+    else:
+        fbins = 0
+        time_steps = 0
+    return (fbins,time_steps)
 
 def setup_data_CNN(data_dicts, input_dims, batch_size, train=True):
     '''
@@ -250,15 +254,24 @@ def setup_data_CNN(data_dicts, input_dims, batch_size, train=True):
         return loader, labels_range
 
 
-def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag):
+def makeModelFilename(mdl_str, feature, k, f, d):
+    dash = "-"
+    ext = ".pt"
+    model_file = mdl_str + dash + feature + dash + str(k) + dash + str(f) + dash + str(d) + ext
+    return model_file
+    
+
+def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, device, test_flag, model_file = None):
 
     #Architecture hyperparams
     kernel_size = 3
     in_channels = 1
     num_filters = 32
     dropout_rate = 0.5
-    model_file = "trained_cnn_model_params.pt"
-
+    
+    if model_file is None:
+        model_file = makeModelFilename("cnn_state_dict", feature, kernel_size, num_filters, dropout_rate)
+        
     if (test_flag=='1'):
         test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
         num_classes = len(test_onehot_dict)
@@ -297,7 +310,7 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_f
 
 
 
-def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, nolstm = False):
+def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, device, test_flag, model_file=None, nolstm = False):
 
     #Architecture hyperparams
     dropout_rate = 0.3
@@ -305,7 +318,8 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, n
     hidden_size = 32
     num_layers = 2
     input_size = 51 # input size for the LSTM
-    model_file = "trained_crnn_model_params.pt"
+    if model_file is None:
+        model_file = makeModelFilename("cnn_state_dict", feature, 10, embed_size, dropout_rate)
 
     if (test_flag=='1'):
         test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
@@ -321,11 +335,11 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, n
 
     else:
         train_embed_dict, train_label_dict, train_onehot_dict = train_dicts
-        dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
+        #dev_embed_dict, dev_label_dict, dev_onehot_dict = dev_dicts
         train_labels_range, dev_labels_range = {}, {}
         num_classes = len(train_onehot_dict)
         num_samples = len(train_embed_dict)
-        num_dev_samples = len(dev_embed_dict)
+        #num_dev_samples = len(dev_embed_dict)
 
 
         # training Hyper parameters
@@ -341,8 +355,10 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, device, test_flag, n
         print("Valid dataset...", len(valid_loader.dataset))
 
 
-        print("Setting up VALIDATION data for model...")
+        
+        #print("Setting up VALIDATION data for model...")
         dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
+        
         model_name = "crnn"
         # Initialize Model
         if (nolstm):

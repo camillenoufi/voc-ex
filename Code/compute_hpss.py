@@ -51,6 +51,14 @@ def adjustScaling(S):
     S = S[:nfbins,:] # lower half of the frequency bins selected
     return S
 
+def saveToFile(master_path,out_file,dict_file2feature_list):
+    #save dictionary to file
+    out_path = os.path.join(master_path, out_file)
+    fout = open(out_path,"wb")
+    pickle.dump(dict_file2feature_list,fout)
+    fout.close()
+    print('features successfully saved to file at: ' + out_path)
+
 if __name__ == '__main__':
 
     # Process command line
@@ -61,12 +69,17 @@ if __name__ == '__main__':
    print('Using dataset at: ')
    print(master_path)
    out_file = args.out_file
-   print('Pickle (.pkl) Feature File will save at: ')
-   print(out_file)
+   (out_root, out_ext) = os.path.splitext(out_file)
+   out_file_h = out_root + "_h" + out_ext
+   out_file_p = out_root + "_p" + out_ext
+   print('Pickle (.pkl) Feature Files will save at: ')
+   print(out_file_h)
+   print(out_file_p)
 
    # Declarations
    wavX = '.wav'
-   dict_file2feature_list = {}
+   dict_file2feature_list_h = {}
+   dict_file2feature_list_p = {}
 
    # Get filenames in dataset
    filenames = os.listdir(master_path)
@@ -76,14 +89,11 @@ if __name__ == '__main__':
    # for a file, compute stft and slice it into smaller features, then add array of features to the dictionary
    i=1
    for f in filepaths:
-       feature_list_tupleHP = computeSTFTSlices(f)
-       dict_file2feature_list[f] = feature_list_tupleHP
+       feature_list_h, feature_list_p = computeSTFTSlices(f)
+       dict_file2feature_list_h[f] = feature_list_h
+       dict_file2feature_list_p[f] = feature_list_p
        print(i)
        i=i+1
 
-   #save dictionary to file
-   out_path = os.path.join(master_path, out_file)
-   fout = open(out_path,"wb")
-   pickle.dump(dict_file2feature_list,fout)
-   fout.close()
-   print('features successfully saved to file at: ' + out_path)
+   saveToFile(master_path,out_file_h,dict_file2feature_list_h)
+   saveToFile(master_path,out_file_p,dict_file2feature_list_p)

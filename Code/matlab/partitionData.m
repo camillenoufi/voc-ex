@@ -50,11 +50,16 @@ train_idx = randperm(M,round(pTrain*M));
 entries_train = entries_top10bal(train_idx);
 entries_test =  entries_top10bal(test_idx);
 
-%% Perform VAD and move selected audio into partition location folder
-inpath = '/usr/ccrma/media/projects/jordan/Datasets/DAMP-AG/audio/wav/all';
 outpath = '/usr/ccrma/media/projects/jordan/Datasets/DAMP-AG/azure-backup/dataset';
 trainDir = 'train';
 testDir = 'test';
+
+addpath('./struct2csv');
+structarr2csv(entries_train,fullfile(outpath,trainDir,'train_labels.csv'))
+structarr2csv(entries_test,fullfile(outpath,testDir,'test_labels.csv'))
+
+%% Perform VAD and move selected audio into partition location folder
+inpath = '/usr/ccrma/media/projects/jordan/Datasets/DAMP-AG/audio/wav/all';
 
 addpath('./sap-voicebox-master/voicebox');
 %performVAD(entries_train,inpath,outpath,trainDir);

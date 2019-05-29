@@ -37,12 +37,8 @@ def computeMelFeatureSlices(file):
     S = librosa.feature.melspectrogram(x, sr=fs, n_fft=2048, hop_length=512, power=2.0)
     #S -= (np.mean(S, axis=0) + 1e-8)
     S = librosa.power_to_db(S) #convert to log-mel spectrogram
-    print(S.shape)
-    print(aa)
-    S = S[:64,:] # 64 mel frequency bins selected
-    #ids = np.where(S < -60)
-    #S[ids[0],ids[1]] = -60
-    #S = sp.stats.zscore(S,axis=None);
+    nfbins = int(np.floor(S.shape[0]/2))
+    S = S[:nfbins,:] # lower half of the frequency bins selected
 
     feature_list = sliceFeatures(S,nsec)
     return feature_list
