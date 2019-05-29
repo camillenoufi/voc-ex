@@ -32,7 +32,7 @@ class DataLoader:
         describe
         """
         with open(os.path.join(self.split_dir, fname), 'rb') as handle:
-            embedding_dict = pickle.load(handle)
+            embedding_dict = pickle.load(handle, encoding='latin1') #for python2 and python3 compatibility
         return embedding_dict
 
     def convert_embed_dict_to_local(self, embedding_dict):

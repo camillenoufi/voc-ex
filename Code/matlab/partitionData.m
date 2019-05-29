@@ -44,6 +44,7 @@ end
 pTrain = .9;
 M = length(entries_top10bal);
 
+rng(1);
 train_idx = randperm(M,round(pTrain*M));
 [~,test_idx] = setdiff((1:M),train_idx);
 
@@ -62,7 +63,7 @@ structarr2csv(entries_test,fullfile(outpath,testDir,'test_labels.csv'))
 inpath = '/usr/ccrma/media/projects/jordan/Datasets/DAMP-AG/audio/wav/all';
 
 addpath('./sap-voicebox-master/voicebox');
-%performVAD(entries_train,inpath,outpath,trainDir);
+performVAD(entries_train,inpath,outpath,trainDir);
 performVAD(entries_test,inpath,outpath,testDir);
 
 

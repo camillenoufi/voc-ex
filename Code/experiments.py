@@ -187,28 +187,36 @@ def get_input_dims(feature):
 
 def setup_data_CNN(data_dicts, input_dims, batch_size, train=True):
     '''
-    Function that handles all the extra data set up before training / evaluting the CNN
+    Function that handles all the extra data set up before training / evaluating the CNN
     '''
     embed_dict, label_dict, onehot_dict = data_dicts
     labels_range = {}
     fbins = input_dims[0]
     time_steps = input_dims[1]
-    start_frame = 4;  #chop off first 4 frames of each input
+    start_frame = 0;  #chop off first 4 frames of each input
 
     for k,v in onehot_dict.items():
         labels_range[k] = np.where(v==1)[0][0]
 
 
     print("...Loading input and labels")
-    list_X = []
-    list_y = []
+    list_X = [] # data input
+    list_y = [] # labels
+    j = 1
+    nofile = ''
     for file, feature_list in embed_dict.items():
         feature_list = feature_list[start_frame:]
         for i, slice in enumerate(feature_list):
 #            print(slice.shape)
             if slice.shape == (fbins, time_steps):
-                list_X.append(slice)
-                list_y.append(labels_range[label_dict[file]])
+                try:
+                    list_y.append(labels_range[label_dict[file]])
+                    list_X.append(slice)
+                except:
+                    if(nofile != file):
+                        print("%d: File Not found in Label set: %s" % (j,file))
+                        j = j+1
+                    nofile = file
 
     X = np.stack(list_X, axis = 2)
     y = np.stack(list_y, axis = 0)
@@ -356,7 +364,7 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, device, tes
 
 
         
-        #print("Setting up VALIDATION data for model...")
+        print("Setting up VALIDATION data for model...")
         dev_loader, label_set = setup_data_CNN(dev_dicts, input_dims, batch_size, train=False)
         
         model_name = "crnn"
