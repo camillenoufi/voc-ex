@@ -351,7 +351,7 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, device, tes
 
 
         # training Hyper parameters
-        batch_size = 32
+        batch_size = 128
         learning_rate = 0.001
         num_epochs = 40
 

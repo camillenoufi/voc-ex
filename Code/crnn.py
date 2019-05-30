@@ -96,7 +96,7 @@ class CRNNNoLSTM(nn.Module):
         #self.decoder = nn.Linear(hidden_size*2, num_classes).double()  # 2 for bidirection
         self.dropout = nn.Dropout(dropout_rate).double()
 
-        self.fc1_input_size =  9500  #10*19*50
+        self.fc1_input_size =  750  #10*19*50
         #fc1_input_size is dependent on kernel size and num filters, if those change, so will this number
         self.fc1_out_size = 594
 
