@@ -7,6 +7,7 @@ import torch.nn.utils
 import torch.nn.functional as F
 from sklearn import neighbors, datasets
 from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix
+from savePerformanceMetrics import savePerformanceMetrics
 
 from earlystop import EarlyStopping
 
@@ -224,14 +225,8 @@ def eval_model(model, dev_data_loader, device, label_set):
             cm = np.add(cm,confusion_matrix(labels, predicted,label_arr))
             num_batches += 1
 
-        print('Test Accuracy of the model on the dev inputs: {} %'.format((correct / total) * 100))
-        print('Average f1, precision, and recall metrics over {} batches:'.format(num_batches))
-        print('F1 (micro):     {}'.format(f1_micro/num_batches))
-        print('F1 (macro):     {}'.format(f1_macro/num_batches))
-        print('F1 (weighted):  {}'.format(f1_weighted/num_batches))
-        print('Precision: {}'.format(precision/num_batches))
-        print('Recall:    {}'.format(recall/num_batches))
-        print('Confusion Matrix:    {}'.format(cm))
+    model_file = model_file + '.val'
+    savePerformanceMetrics(correct, total, f1_micro,f1_macro,f1_weighted,precision,recall,cm,num_batches, model_file)
 
 def test_model(model, model_file, test_data_loader, device, label_set):
 
@@ -279,16 +274,6 @@ def test_model(model, model_file, test_data_loader, device, label_set):
             recall += recall_score(labels, predicted, average='weighted')
             cm = np.add(cm,confusion_matrix(labels, predicted,label_arr))
             num_batches += 1
-     
-    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis] #normalize confusion matrix       
-    print('Overall Accuracy of the model on the test inputs: {} %'.format((correct / total) * 100))
-    print('Average f1, precision, and recall metrics over {} batches:'.format(num_batches))
-    print('F1 (micro):     {}'.format(f1_micro/num_batches))
-    print('F1 (macro):     {}'.format(f1_macro/num_batches))
-    print('F1 (weighted):  {}'.format(f1_weighted/num_batches))
-    print('Precision: {}'.format(precision/num_batches))
-    print('Recall:    {}'.format(recall/num_batches))
-    print('Confusion Matrix:    {}'.format(cm))
 
-def savePerformanceMetrics(f1_micro,f1_macro,f1_weighted,precision,recall,cm,num_batches):
-    i = 1
+    model_file = model_file + '.test'
+    savePerformanceMetrics(correct, total, f1_micro,f1_macro,f1_weighted,precision,recall,cm,num_batches, model_file)
