@@ -93,14 +93,14 @@ def load_train_and_dev(dir,train_dir,dev_dir,vm_flag,feature):
             train_fname = 'train_melfeats_balanced.pkl'
             dev_fname = 'test_melfeats_all.pkl'
         elif (feature == '1'):
-            train_fname = 'train_stft_balanced.pkl'
-            dev_fname = 'test_stft_all.pkl'
+            train_fname = 'train_stftfeats_balanced.pkl'
+            dev_fname = 'test_stftfeats_all.pkl'
         elif (feature == '2'):
-            train_fname = 'train_hpss_balanced_h.pkl'
-            dev_fname = 'test_hpss_all_h.pkl'
+            train_fname = 'train_hpssfeats_balanced_h.pkl'
+            dev_fname = 'test_hpssfeats_all_h.pkl'
         elif (feature == '3'):
-            train_fname = 'train_hpss_balanced_p.pkl'
-            dev_fname = 'test_hpss_all_p.pkl'
+            train_fname = 'train_hpssfeats_balanced_p.pkl'
+            dev_fname = 'test_hpssfeats_all_p.pkl'
         train_labels_fname = 'train_labels.csv'
         dev_labels_fname = 'test_labels.csv'
     else:
@@ -152,11 +152,11 @@ def load_test(dir,test_dir,vm_flag,feature):
         if (feature == '0'):
             test_fname = 'test_melfeats_all.pkl'
         elif (feature == '1'):
-            test_fname = 'test_stft_all.pkl'
+            test_fname = 'test_stftfeats_all.pkl'
         elif (feature == '2'):
-            test_fname = 'test_hpss_all_h.pkl'
+            test_fname = 'test_hpssfeats_all_h.pkl'
         elif (feature == '3'):
-            test_fname = 'test_hpss_all_p.pkl'
+            test_fname = 'test_hpssfeats_all_p.pkl'
         test_labels_fname = 'test_labels.csv'
     else:
         test_fname = 'dict_test_feats.pkl'
@@ -322,12 +322,12 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, device, tes
 
     #Architecture hyperparams
     dropout_rate = 0.3
-    embed_size = 32
-    hidden_size = 32
+    embed_size = 64
+    hidden_size = 64
     num_layers = 2
     input_size = 51 # input size for the LSTM
     if model_file is None:
-        model_file = makeModelFilename("cnn_state_dict", feature, 10, embed_size, dropout_rate)
+        model_file = makeModelFilename("crnn_state_dict", feature, 3, embed_size, dropout_rate)
 
     if (test_flag=='1'):
         test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
@@ -351,7 +351,7 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, device, tes
 
 
         # training Hyper parameters
-        batch_size = 128
+        batch_size = 32
         learning_rate = 0.001
         num_epochs = 40
 

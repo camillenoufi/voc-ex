@@ -91,7 +91,7 @@ def train_model(model, train_data_loader, valid_loader, batch_size, learning_rat
     #model = model.to(device).train()  # set in train mode
     loss_fn = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    early_stopping = EarlyStopping(patience=10, verbose=True)
+    early_stopping = EarlyStopping(patience=10, verbose=True, model_name=model_name)
 
     total_steps = len(train_data_loader)
     train_losses = []

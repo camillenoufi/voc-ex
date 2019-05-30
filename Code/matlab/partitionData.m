@@ -62,10 +62,12 @@ structarr2csv(entries_test,fullfile(outpath,testDir,'test_labels.csv'))
 %% Perform VAD and move selected audio into partition location folder
 inpath = '/usr/ccrma/media/projects/jordan/Datasets/DAMP-AG/audio/wav/all';
 
-addpath('./sap-voicebox-master/voicebox');
-performVAD(entries_train,inpath,outpath,trainDir);
-performVAD(entries_test,inpath,outpath,testDir);
+% addpath('./sap-voicebox-master/voicebox');
+% performVAD(entries_train,inpath,outpath,trainDir);
+% performVAD(entries_test,inpath,outpath,testDir);
 
+selectAudio(entries_train,inpath,outpath,trainDir);
+selectAudio(entries_test,inpath,outpath,testDir);
 
 %% Helper Funcs
 
@@ -86,7 +88,8 @@ function performVAD(theStruct,in_path,out_path,partition)
     
     disp(partition);
     
-    introLen = 9; %9 seconds
+    onset = 9.6; %75 bpm, downbeat of 5th measure
+    off = 22.4; %after "wretch"
     out_path = fullfile(out_path,partition);
     
     if ~exist(out_path,'dir')
@@ -96,12 +99,37 @@ function performVAD(theStruct,in_path,out_path,partition)
     for i=1:length(theStruct)
         fname = theStruct(i).name;
         [y,fs] = audioread(fullfile(in_path,fname));
-        y = y(introLen*fs:end); %remove intro
-        [vs,~] = v_vadsohn(y,fs);
-        len = min(length(y),length(vs));
-        y_out = y(1:len);
-        y_out = y_out(vs==1);
-        audiowrite(fullfile(out_path,fname),y_out,fs);
+        y = y(onset*fs:off*fs); %remove intro
+%         [vs,~] = v_vadsohn(y,fs);
+%         len = min(length(y),length(vs));
+%         y_out = y(1:len);
+%         y_out = y_out(vs==1);
+        audiowrite(fullfile(out_path,fname),y,fs);
+        disp(i);
+    end
+end
+
+function selectAudio(theStruct,in_path,out_path,partition)
+    
+    disp(partition);
+    
+    onset = 9.6; %75 bpm
+    offset = 22.4; 
+    out_path = fullfile(out_path,partition);
+    
+    if ~exist(out_path,'dir')
+        mkdir(out_path);
+    end
+
+    for i=1:length(theStruct)
+        fname = theStruct(i).name;
+        [y,fs] = audioread(fullfile(in_path,fname));
+        y = y(round(onset*fs):round(offset*fs)); %remove intro
+%         [vs,~] = v_vadsohn(y,fs);
+%         len = min(length(y),length(vs));
+%         y_out = y(1:len);
+%         y_out = y_out(vs==1);
+        audiowrite(fullfile(out_path,fname),y,fs);
         disp(i);
     end
 end

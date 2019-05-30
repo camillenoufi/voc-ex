@@ -16,7 +16,7 @@ parser.add_argument('--out_file', default='dict_dev_feats_NotNorm.pkl', help="ou
 
 # chop spectrogram into feature slices
 def sliceFeatures(S,nsec):
-    fsec = .60 #feature length in seconds, 1 beat
+    fsec = 2.4  #feature length in seconds, 1 measure
     feature_list = []
     (_,N) = S.shape
     slice_size = int(np.floor((N/nsec)*fsec)) #frame/sec * feature length in seconds
