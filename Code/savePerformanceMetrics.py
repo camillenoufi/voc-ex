@@ -2,6 +2,8 @@ import numpy as np
 import seaborn as sn
 import pandas as pd
 import csv
+import os
+import pickle
 
 def savePerformanceMetrics(correct, total, f1_micro, f1_macro, f1_weighted, precision, recall, cm, num_batches, model_file):
 
@@ -29,7 +31,7 @@ def savePerformanceMetrics(correct, total, f1_micro, f1_macro, f1_weighted, prec
     md['Recall'] = recall/num_batches * 100
 
 
-    cm = np.array(cm)
+    cm = np.asarray(cm)
     cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
     print('Confusion Matrix:    {}'.format(cm))
 
@@ -37,7 +39,9 @@ def savePerformanceMetrics(correct, total, f1_micro, f1_macro, f1_weighted, prec
     try:
 
         cm_file = os.path.join('.', model_file + 'cm.csv')
-
+    except:
+        print('cm  path syntax error')
+    try:
         np.savetxt(cm_file, cm, delimiter=",")
         df_cm = pd.DataFrame(cm, index = [i for i in lbls],
                           columns = [i for i in lbls])
@@ -48,8 +52,21 @@ def savePerformanceMetrics(correct, total, f1_micro, f1_macro, f1_weighted, prec
     #save metrics as csv
     try:
         metrics_file = os.path.join('.',model_file + 'metrics.csv')
+    except:
+        print('metrics path syntax error')
+    try:
         with open(metrics_file, 'wb') as f:
             for key in md.keys():
                 f.write("%s,%s\n"%(key,md[key]))
     except:
         print("I/O error")
+
+
+
+def savePredictedInputDataExamples(inputs_list, model_file):
+        #save to file
+        out_path = model_file + "identifiedInputs.pkl"
+        fout = open(out_path,"wb")
+        pickle.dump(inputs_list,fout)
+        fout.close()
+        print('accurately identified inputs (20 examples) successfully saved to file at: ' + out_path)

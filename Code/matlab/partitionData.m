@@ -114,7 +114,7 @@ function selectAudio(theStruct,in_path,out_path,partition)
     disp(partition);
     
     onset = 9.6; %75 bpm
-    offset = 22.4; 
+    offset = 160.8; 
     out_path = fullfile(out_path,partition);
     
     if ~exist(out_path,'dir')
@@ -124,7 +124,7 @@ function selectAudio(theStruct,in_path,out_path,partition)
     for i=1:length(theStruct)
         fname = theStruct(i).name;
         [y,fs] = audioread(fullfile(in_path,fname));
-        y = y(round(onset*fs):round(offset*fs)); %remove intro
+        y = y(round(onset*fs):round(offset*fs));
 %         [vs,~] = v_vadsohn(y,fs);
 %         len = min(length(y),length(vs));
 %         y_out = y(1:len);

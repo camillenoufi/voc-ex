@@ -82,7 +82,7 @@ class CRNNNoLSTM(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
 
-        self.first = nn.Conv2d(1, embed_size, 3, stride=1, padding=1).double()
+        self.first = nn.Conv2d(1, embed_size, 10, stride=1, padding=1).double()
         self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d((2,2), (2,2)).double()
 
@@ -96,7 +96,7 @@ class CRNNNoLSTM(nn.Module):
         #self.decoder = nn.Linear(hidden_size*2, num_classes).double()  # 2 for bidirection
         self.dropout = nn.Dropout(dropout_rate).double()
 
-        self.fc1_input_size =  1190  #10*19*50
+        self.fc1_input_size =  3750#3900  #10*19*50
         #fc1_input_size is dependent on kernel size and num filters, if those change, so will this number
         self.fc1_out_size = 594
 

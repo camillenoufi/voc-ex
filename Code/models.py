@@ -7,7 +7,7 @@ import torch.nn.utils
 import torch.nn.functional as F
 from sklearn import neighbors, datasets
 from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix
-from savePerformanceMetrics import savePerformanceMetrics
+from savePerformanceMetrics import savePerformanceMetrics, savePredictedInputDataExamples
 
 from earlystop import EarlyStopping
 
@@ -28,7 +28,7 @@ class VanillaCNN(nn.Module):
         self.num_classes = num_classes # 10
         self.mp_kernel_size = 2
         self.dropout_rate = dropout_rate
-        self.fc1_input_size =  9504
+        self.fc1_input_size =  4032#9504
         #fc1_input_size is dependent on kernel size and num filters, if those change, so will this number
         self.fc1_out_size = 594
 
@@ -183,7 +183,7 @@ def train_model(model, train_data_loader, valid_loader, batch_size, learning_rat
     return  model
 
 
-def eval_model(model, dev_data_loader, device, label_set):
+def eval_model(model, dev_data_loader, device, label_set, model_file):
 
     model = model.to(device).eval()
 
@@ -252,6 +252,7 @@ def test_model(model, model_file, test_data_loader, device, label_set):
     cm = np.zeros((len(label_arr),len(label_arr)))
     num_batches = 0
 
+    inputs_keep = []
     with torch.no_grad():
         running_eval_loss = 0
         for inputs, labels in test_data_loader:
@@ -262,7 +263,14 @@ def test_model(model, model_file, test_data_loader, device, label_set):
             running_eval_loss += loss_
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
+            #print(predicted==labels)
             correct += (predicted == labels).sum().item()
+            
+            for i,v in enumerate(predicted):
+                if (predicted[i]==labels[i] and len(inputs_keep) <= 20):
+                    inputs_keep.append(inputs[i].cpu().numpy())
+
+                    
 
             labels = labels.cpu()
             predicted = predicted.cpu()
@@ -277,3 +285,5 @@ def test_model(model, model_file, test_data_loader, device, label_set):
 
     model_file = model_file + '.test'
     savePerformanceMetrics(correct, total, f1_micro,f1_macro,f1_weighted,precision,recall,cm,num_batches, model_file)
+    savePredictedInputDataExamples(inputs_keep,model_file)
+

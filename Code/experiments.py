@@ -176,10 +176,10 @@ def load_test(dir,test_dir,vm_flag,feature):
 def get_input_dims(feature):
     if (feature == '0'): #mel
         fbins = 64
-        time_steps = 25
-    elif (feature == '1' | feature == '2' | feature == '3'): #stft or hpss
+        time_steps = 103
+    elif (feature == '1' or feature == '2' or feature == '3'): #stft or hpss
         fbins = 256
-        time_steps = 51
+        time_steps = 206
     else:
         fbins = 0
         time_steps = 0
@@ -299,7 +299,7 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, devic
 
 
         # Learning Hyper-parameters
-        batch_size = 32
+        batch_size = 128
         learning_rate = 0.001
         num_epochs = 40
 
@@ -314,7 +314,7 @@ def runVanillaCNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, devic
         torch.save(cnn.state_dict(), model_file)
 
         # Evaluate Model
-        eval_model(cnn, dev_loader, device, label_set)
+        eval_model(cnn, dev_loader, device, label_set, model_file)
 
 
 
@@ -322,12 +322,12 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, device, tes
 
     #Architecture hyperparams
     dropout_rate = 0.3
-    embed_size = 64
-    hidden_size = 64
+    embed_size = 32
+    hidden_size = 32
     num_layers = 2
     input_size = 51 # input size for the LSTM
     if model_file is None:
-        model_file = makeModelFilename("crnn_state_dict", feature, 3, embed_size, dropout_rate)
+        model_file = makeModelFilename("crnn_state_dict", feature, 10, embed_size, dropout_rate)
 
     if (test_flag=='1'):
         test_embed_dict, test_label_dict, test_onehot_dict = test_dicts
@@ -378,7 +378,7 @@ def runCRNN(train_dicts, dev_dicts, test_dicts, input_dims, feature, device, tes
         torch.save(crnn.state_dict(), model_file)
 
         # Evaluate Model
-        eval_model(crnn, dev_loader, device, label_set)
+        eval_model(crnn, dev_loader, device, label_set, model_file)
 
 
 def runKNN(train_dicts, dev_dicts, test_dicts, input_dims, batch_size, test_flag):

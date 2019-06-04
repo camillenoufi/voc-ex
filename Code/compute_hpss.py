@@ -20,7 +20,7 @@ def sliceFeatures(S,nsec):
     feature_list = []
     (_,N) = S.shape
     slice_size = int(np.floor((N/nsec)*fsec)) #frame/sec * feature length in seconds
-    hop_size = int(np.floor(slice_size*0.50))
+    hop_size = int(np.floor(slice_size*0.25))
 
     i=0;
     while i < N:
