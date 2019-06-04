@@ -63,10 +63,16 @@ def savePerformanceMetrics(correct, total, f1_micro, f1_macro, f1_weighted, prec
 
 
 
-def savePredictedInputDataExamples(inputs_list, model_file):
+def savePredictedInputDataExamples(inputs_list, label_list, model_file):
         #save to file
         out_path = model_file + "identifiedInputs.pkl"
         fout = open(out_path,"wb")
         pickle.dump(inputs_list,fout)
         fout.close()
+
+        out_path = model_file + "identifiedLabels.pkl"
+        fout = open(out_path,"wb")
+        pickle.dump(label_list,fout)
+        fout.close()
+
         print('accurately identified inputs successfully saved to file at: ' + out_path)

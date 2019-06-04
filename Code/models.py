@@ -253,6 +253,7 @@ def test_model(model, model_file, test_data_loader, device, label_set):
     num_batches = 0
 
     inputs_keep = []
+    labels_keep = []
     with torch.no_grad():
         running_eval_loss = 0
         for inputs, labels in test_data_loader:
@@ -269,8 +270,7 @@ def test_model(model, model_file, test_data_loader, device, label_set):
             for i,v in enumerate(predicted):
                 if (predicted[i]==labels[i] and len(inputs_keep) < 196):
                     inputs_keep.append(inputs[i].cpu().numpy())
-                    print(len(inputs_keep))
-
+                    labels_keep.append(labels[i].cpu())
                     
 
             labels = labels.cpu()
@@ -286,5 +286,5 @@ def test_model(model, model_file, test_data_loader, device, label_set):
 
     model_file = model_file + '.test'
     savePerformanceMetrics(correct, total, f1_micro,f1_macro,f1_weighted,precision,recall,cm,num_batches, model_file)
-    savePredictedInputDataExamples(inputs_keep,model_file)
+    savePredictedInputDataExamples(inputs_keep,labels_keep,model_file)
 
