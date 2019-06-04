@@ -267,8 +267,9 @@ def test_model(model, model_file, test_data_loader, device, label_set):
             correct += (predicted == labels).sum().item()
             
             for i,v in enumerate(predicted):
-                if (predicted[i]==labels[i] and len(inputs_keep) <= 20):
+                if (predicted[i]==labels[i] and len(inputs_keep) < 196):
                     inputs_keep.append(inputs[i].cpu().numpy())
+                    print(len(inputs_keep))
 
                     
 

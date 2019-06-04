@@ -69,4 +69,4 @@ def savePredictedInputDataExamples(inputs_list, model_file):
         fout = open(out_path,"wb")
         pickle.dump(inputs_list,fout)
         fout.close()
-        print('accurately identified inputs (20 examples) successfully saved to file at: ' + out_path)
+        print('accurately identified inputs successfully saved to file at: ' + out_path)
